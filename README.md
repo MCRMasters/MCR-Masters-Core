@@ -63,7 +63,7 @@ poetry run pre-commit install
 
 ### 7. 테스트 실행
 ```bash
-poetry run test
+poetry run pytest
 ```
 
 ### 8. 애플리케이션 실행

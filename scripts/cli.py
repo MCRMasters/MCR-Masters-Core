@@ -2,7 +2,6 @@ import asyncio
 import sys
 
 import alembic.config
-import pytest
 import uvicorn
 
 from app.db.session import init_db
@@ -15,11 +14,6 @@ def start_dev_server() -> None:
 def start_prod_server() -> None:
     """프로덕션 서버를 시작합니다."""
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000)
-
-
-def run_tests() -> None:
-    """테스트를 실행합니다."""
-    sys.exit(pytest.main(["tests"]))
 
 
 def run_migrations() -> None:

@@ -8,7 +8,7 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-admin}
       - POSTGRES_DB=${POSTGRES_DB:-mcr_masters}
     ports:
-      - "${POSTGRES_PORT:}:5432"
+      - "${POSTGRES_PORT:-5433}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     command: postgres -c 'max_connections=1000'
