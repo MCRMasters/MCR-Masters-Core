@@ -1,5 +1,5 @@
-# MCRMasters-BE
-Backend API server for MCRMasters - 국표마작 온라인 게임
+# MCR-Masters-Core
+Backend API server for MCR-Masters
 
 ## 개발 환경 준비
 
@@ -16,8 +16,8 @@ Backend API server for MCRMasters - 국표마작 온라인 게임
 
 ### 1. 저장소 클론
 ```bash
-git clone https://github.com/MCRMasters/MCRMasters-BE.git
-cd MCRMasters-BE
+git clone https://github.com/MCRMasters/MCR-Masters-Core.git
+cd MCR-Masters-Core
 ```
 
 ### 2. 의존성 설치
