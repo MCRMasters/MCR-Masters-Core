@@ -4,16 +4,16 @@ services:
   db:
     image: postgres:latest
     environment:
-      - POSTGRES_USER=admin
-      - POSTGRES_PASSWORD=admin
-      - POSTGRES_DB=mcr_masters
+      - POSTGRES_USER=${POSTGRES_USER:-admin}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-admin}
+      - POSTGRES_DB=${POSTGRES_DB:-mcr_masters}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     command: postgres -c 'max_connections=1000'
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin}"]
       interval: 5s
       timeout: 5s
       retries: 5
