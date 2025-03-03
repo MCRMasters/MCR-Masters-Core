@@ -13,19 +13,22 @@ Backend API server for MCR-Masters
 - PostgreSQL
 
 ## 프로젝트 설정
-
-### 1. 저장소 클론
+### 1. python 3.12.9 설치
+```bash
+pyenv install 3.12.9
+```
+### 2. 저장소 클론
 ```bash
 git clone https://github.com/MCRMasters/MCR-Masters-Core.git
 cd MCR-Masters-Core
 ```
 
-### 2. 의존성 설치
+### 3. 의존성 설치
 ```bash
 poetry install
 ```
 
-### 3. 환경 변수 설정
+### 4. 환경 변수 설정
 `.env.sample` 파일을 복사하여 `.env` 파일을 생성합니다:
 
 ```bash
@@ -45,28 +48,28 @@ cp .env.sample .env.test
 
 `.env.test` 파일을 열고 테스트 환경에 맞는 값으로 수정합니다. 특히 `ENVIRONMENT=test`로 설정하고, 테스트용 데이터베이스 정보를 설정해야 합니다.
 
-### 4. 데이터베이스 컨테이너 실행
+### 5. 데이터베이스 컨테이너 실행
 ```bash
 docker-compose up -d
 ```
 
-### 5. 데이터베이스 마이그레이션
+### 6. 데이터베이스 마이그레이션
 ```bash
 poetry run init-db     # 데이터베이스 초기화
 poetry run migrate     # 마이그레이션 적용
 ```
 
-### 6. pre-commit 훅 설치
+### 7. pre-commit 훅 설치
 ```bash
 poetry run pre-commit install
 ```
 
-### 7. 테스트 실행
+### 8. 테스트 실행
 ```bash
 poetry run pytest
 ```
 
-### 8. 애플리케이션 실행
+### 9. 애플리케이션 실행
 ```bash
 # 개발 모드 실행 (자동 리로드)
 poetry run start
