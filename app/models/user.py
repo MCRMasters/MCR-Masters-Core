@@ -3,9 +3,9 @@ from enum import Enum
 
 from pydantic import field_validator
 from sqlalchemy import Column, DateTime, String
-from sqlmodel import Field
+from sqlmodel import Field, SQLModel
 
-from app.models.base_model import BaseModel
+from app.models.time_stamp_mixin import TimeStampMixin
 from app.util.validators import validate_uid
 
 
@@ -16,8 +16,8 @@ class UserStatus(str, Enum):
     PLAYING = "playing"
 
 
-class User(BaseModel, table=True):  # type: ignore[call-arg]
-    uid: str = Field(index=True, unique=True)
+class User(SQLModel, TimeStampMixin, table=True):  # type: ignore[call-arg]
+    uid: str = Field(primary_key=True)
     nickname: str = Field(max_length=10)
     is_active: bool = Field(default=True)
     status: UserStatus = Field(default=UserStatus.OFFLINE, sa_column=Column(String(20)))
