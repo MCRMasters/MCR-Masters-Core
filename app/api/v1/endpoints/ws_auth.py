@@ -46,6 +46,8 @@ async def google_login_ws(
                             "action": "auth_success",
                             "access_token": token.access_token,
                             "refresh_token": token.refresh_token,
+                            "is_new_user": token.is_new_user,
+                            "token_type": token.token_type,
                         },
                     )
                 case _:
