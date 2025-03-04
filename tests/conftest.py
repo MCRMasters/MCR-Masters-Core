@@ -1,3 +1,4 @@
+import asyncio
 from unittest.mock import AsyncMock
 
 import pytest
@@ -10,6 +11,7 @@ from app.db.session import get_session
 from app.main import app
 from app.models.user import User
 from app.schemas.google_oauth import GoogleTokenResponse, GoogleUserInfo
+from app.schemas.token_response import TokenResponse
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -60,6 +62,52 @@ def mock_google_client(mocker, mock_google_responses):
 
     mocker.patch("httpx.AsyncClient", return_value=mock_client)
     yield mock_client
+
+
+@pytest.fixture
+def mock_websocket_client(mocker, mock_google_responses):
+    mock_websocket = AsyncMock()
+
+    send_queue = asyncio.Queue()
+    receive_queue = asyncio.Queue()
+
+    async def mock_send_json(message):
+        await send_queue.put(message)
+
+        if message["action"] == "get_oauth_url":
+            await receive_queue.put(
+                {"action": "oauth_url", "auth_url": "https://mock.auth.url"},
+            )
+        elif message["action"] == "auth":
+            if "code" not in message or not message["code"]:
+                await receive_queue.put({"error": "No code in auth"})
+            elif message["code"] == "test_code":
+                token_response = TokenResponse(
+                    access_token="mock_access_token",
+                    refresh_token="mock_refresh_token",
+                    is_new_user=True,
+                )
+                await receive_queue.put(
+                    {
+                        "action": "auth_success",
+                        "access_token": token_response.access_token,
+                        "refresh_token": token_response.refresh_token,
+                        "is_new_user": token_response.is_new_user,
+                        "token_type": token_response.token_type,
+                    },
+                )
+            else:
+                await receive_queue.put({"error": "Invalid OAuth code"})
+        else:
+            await receive_queue.put({"error": f"Invalid action: {message['action']}"})
+
+    async def mock_receive_json():
+        return await receive_queue.get()
+
+    mock_websocket.send_json.side_effect = mock_send_json
+    mock_websocket.receive_json.side_effect = mock_receive_json
+
+    return mock_websocket
 
 
 @pytest.fixture
