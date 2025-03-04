@@ -9,3 +9,11 @@ class TimeStampMixin:
         default_factory=lambda: datetime.now(UTC),
         sa_column=Column(DateTime(timezone=True)),
     )
+    updated_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(
+            DateTime(timezone=True),
+            nullable=True,
+            onupdate=datetime.now(UTC),
+        ),
+    )
