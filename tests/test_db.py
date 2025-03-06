@@ -17,12 +17,23 @@ async def test_engine():
         poolclass=NullPool,
     )
 
+    # 테이블 생성 전에 기존 테이블 삭제 (CASCADE 옵션 사용)
     async with engine.begin() as conn:
+        # 기존 테이블을 모두 삭제 (CASCADE 옵션 사용)
+        await conn.execute(text("DROP SCHEMA public CASCADE"))
+        await conn.execute(text("CREATE SCHEMA public"))
+
+        # 이제 새로운 테이블 생성
         await conn.run_sync(SQLModel.metadata.create_all)
+
     yield engine
 
+    # 테스트 후 정리
     async with engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.drop_all)
+        # CASCADE 옵션으로 모든 테이블을 안전하게 제거
+        await conn.execute(text("DROP SCHEMA public CASCADE"))
+        await conn.execute(text("CREATE SCHEMA public"))
+
     await engine.dispose()
 
 
