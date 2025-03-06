@@ -14,5 +14,6 @@ class RoomUser(SQLModel, table=True):  # type: ignore[call-arg]
         sa_column=Column(DateTime(timezone=True)),
     )
     is_host: bool = Field(default=False)
+    is_ready: bool = Field(default=False)
 
     __table_args__ = (UniqueConstraint("user_id"),)
