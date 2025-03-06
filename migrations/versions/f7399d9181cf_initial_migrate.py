@@ -1,8 +1,8 @@
-"""init migrate
+"""initial migrate
 
-Revision ID: f9fce882f1db
+Revision ID: f7399d9181cf
 Revises:
-Create Date: 2025-03-07 01:52:59.226513
+Create Date: 2025-03-07 02:11:42.127653
 
 """
 
@@ -14,7 +14,7 @@ import sqlmodel
 
 
 # revision identifiers, used by Alembic.
-revision: str = "f9fce882f1db"
+revision: str = "f7399d9181cf"
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -29,8 +29,7 @@ def upgrade() -> None:
         sa.Column(
             "nickname", sqlmodel.sql.sqltypes.AutoString(length=10), nullable=False
         ),
-        sa.Column("is_active", sa.Boolean(), nullable=False),
-        sa.Column("status", sa.String(length=20), nullable=True),
+        sa.Column("is_online", sa.Boolean(), nullable=False),
         sa.Column("last_login", sa.DateTime(timezone=True), nullable=True),
         sa.Column("email", sqlmodel.sql.sqltypes.AutoString(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
@@ -61,6 +60,7 @@ def upgrade() -> None:
         sa.Column("user_id", sa.Uuid(), nullable=False),
         sa.Column("joined_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("is_host", sa.Boolean(), nullable=False),
+        sa.Column("is_ready", sa.Boolean(), nullable=False),
         sa.ForeignKeyConstraint(
             ["room_id"],
             ["room.id"],
