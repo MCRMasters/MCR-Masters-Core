@@ -1,8 +1,8 @@
 """initial migrate
 
-Revision ID: f7399d9181cf
+Revision ID: 9d22feb6cd0f
 Revises:
-Create Date: 2025-03-07 02:11:42.127653
+Create Date: 2025-03-07 02:13:13.622209
 
 """
 
@@ -14,7 +14,7 @@ import sqlmodel
 
 
 # revision identifiers, used by Alembic.
-revision: str = "f7399d9181cf"
+revision: str = "9d22feb6cd0f"
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -58,7 +58,6 @@ def upgrade() -> None:
         "roomuser",
         sa.Column("room_id", sa.Uuid(), nullable=False),
         sa.Column("user_id", sa.Uuid(), nullable=False),
-        sa.Column("joined_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("is_host", sa.Boolean(), nullable=False),
         sa.Column("is_ready", sa.Boolean(), nullable=False),
         sa.ForeignKeyConstraint(
