@@ -1,5 +1,6 @@
 from datetime import datetime
 from enum import Enum
+from uuid import UUID, uuid4
 
 from pydantic import field_validator
 from sqlalchemy import Column, DateTime, String
@@ -17,6 +18,10 @@ class UserStatus(str, Enum):
 
 
 class User(SQLModel, TimeStampMixin, table=True):  # type: ignore[call-arg]
+    id: UUID = Field(
+        default_factory=uuid4,
+        primary_key=True,
+    )
     uid: str = Field(primary_key=True)
     nickname: str = Field(max_length=10)
     is_active: bool = Field(default=True)
