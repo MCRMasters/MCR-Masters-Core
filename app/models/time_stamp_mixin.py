@@ -1,19 +1,23 @@
 from datetime import UTC, datetime
 
 from sqlalchemy import Column, DateTime
-from sqlmodel import Field
+from sqlalchemy.orm import Mapped, declared_attr
 
 
 class TimeStampMixin:
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC),
-        sa_column=Column(DateTime(timezone=True)),
-    )
-    updated_at: datetime | None = Field(
-        default=None,
-        sa_column=Column(
+    @declared_attr
+    def created_at(cls) -> Mapped[datetime]:  # noqa: N805
+        return Column(
             DateTime(timezone=True),
+            default=datetime.now(UTC),
+            nullable=False,
+        )
+
+    @declared_attr
+    def updated_at(cls) -> Mapped[datetime]:  # noqa: N805
+        return Column(
+            DateTime(timezone=True),
+            default=None,
             nullable=True,
             onupdate=datetime.now(UTC),
-        ),
-    )
+        )

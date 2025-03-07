@@ -1,31 +1,22 @@
 from datetime import datetime
-from enum import Enum
 from uuid import UUID, uuid4
 
 from pydantic import field_validator
-from sqlalchemy import Column, DateTime, String
+from sqlalchemy import Column, DateTime
 from sqlmodel import Field, SQLModel
 
 from app.models.time_stamp_mixin import TimeStampMixin
 from app.util.validators import validate_uid
 
 
-class UserStatus(str, Enum):
-    OFFLINE = "offline"
-    ONLINE = "online"
-    IN_ROOM = "in-room"
-    PLAYING = "playing"
-
-
-class User(SQLModel, TimeStampMixin, table=True):  # type: ignore[call-arg]
+class User(TimeStampMixin, SQLModel, table=True):  # type: ignore[call-arg]
     id: UUID = Field(
         default_factory=uuid4,
         primary_key=True,
     )
-    uid: str = Field(primary_key=True)
+    uid: str = Field(unique=True)
     nickname: str = Field(max_length=10)
-    is_active: bool = Field(default=True)
-    status: UserStatus = Field(default=UserStatus.OFFLINE, sa_column=Column(String(20)))
+    is_online: bool = Field(default=False)
 
     last_login: datetime | None = Field(
         default=None,

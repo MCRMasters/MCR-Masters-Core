@@ -7,6 +7,9 @@ from app.core.config import settings
 
 # Import your SQLModel models
 from app.models.user import User
+from app.models.room import Room
+from app.models.room_user import RoomUser
+from app.models.relations import *
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
