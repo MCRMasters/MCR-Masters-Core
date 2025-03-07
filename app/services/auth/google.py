@@ -77,8 +77,8 @@ class GoogleOAuthService:
             await session.commit()
             await session.refresh(user)
 
-            access_token = create_access_token(data={"sub": user.email})
-            refresh_token = create_refresh_token(data={"sub": user.email})
+            access_token = create_access_token(user.id)
+            refresh_token = create_refresh_token(user.id)
 
             return TokenResponse(
                 access_token=access_token,
