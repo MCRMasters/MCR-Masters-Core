@@ -31,7 +31,7 @@ async def get_or_create_user(db: AsyncSession, user_info: dict) -> tuple[User, b
     result = await db.execute(
         select(User).where(User.email == user_info["email"]),
     )
-    user = result.scalar_one_or_none()
+    user: User | None = result.scalar_one_or_none()
     if not user:
         new_uid = await generate_unique_uid(db)
         user = User(
