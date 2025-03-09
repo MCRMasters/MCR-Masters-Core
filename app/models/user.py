@@ -6,7 +6,7 @@ from sqlalchemy import Column, DateTime
 from sqlmodel import Field, SQLModel
 
 from app.models.time_stamp_mixin import TimeStampMixin
-from app.util.validators import validate_uid
+from app.util.validators import validate_nickname, validate_uid
 
 
 class User(TimeStampMixin, SQLModel, table=True):  # type: ignore[call-arg]
@@ -29,3 +29,8 @@ class User(TimeStampMixin, SQLModel, table=True):  # type: ignore[call-arg]
     @classmethod
     def validate_uid(cls, v: str) -> str:
         return validate_uid(v)
+
+    @field_validator("nickname")
+    @classmethod
+    def validate_nickname(cls, v: str) -> str:
+        return validate_nickname(v)
