@@ -45,7 +45,6 @@ def mock_session(mocker, mock_user):
 
 @pytest.fixture
 def mock_auth(mocker, mock_user):
-    # 인증 관련 의존성 모킹
     mocker.patch(
         "app.core.auth.get_user_id_from_token",
         return_value=mock_user.id,
@@ -145,7 +144,6 @@ def mock_google_responses():
 
 @pytest_asyncio.fixture
 async def client(mock_session):
-    """인증되지 않은 기본 클라이언트 fixture (non-login client)"""
     app.dependency_overrides[get_session] = lambda: mock_session
 
     async with AsyncClient(
@@ -159,7 +157,6 @@ async def client(mock_session):
 
 @pytest_asyncio.fixture
 async def login_client(mock_session, mock_auth):
-    """인증된 클라이언트 fixture (login client)"""
     app.dependency_overrides[get_session] = lambda: mock_session
     app.dependency_overrides[get_current_user] = lambda: mock_auth
 
