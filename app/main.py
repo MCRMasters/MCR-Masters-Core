@@ -39,6 +39,7 @@ async def mcr_domain_error_handler(
         DomainErrorCode.NICKNAME_ALREADY_SET: status.HTTP_400_BAD_REQUEST,
         DomainErrorCode.USER_NOT_FOUND: status.HTTP_404_NOT_FOUND,
         DomainErrorCode.INVALID_UID: status.HTTP_422_UNPROCESSABLE_ENTITY,
+        DomainErrorCode.INVALID_NICKNAME: status.HTTP_422_UNPROCESSABLE_ENTITY,
     }
     status_code = domain_error_code_mapper[exc.code]
 
