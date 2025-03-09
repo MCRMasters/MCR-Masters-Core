@@ -7,13 +7,20 @@ from app.core.security import get_user_id_from_token
 from app.db.session import get_session
 from app.models.user import User
 
-auth_scheme = HTTPBearer()
+auth_scheme = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
     auth: HTTPAuthorizationCredentials = Depends(auth_scheme),
     session: AsyncSession = Depends(get_session),
 ) -> User:
+    if auth is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     token = auth.credentials
     user_id = get_user_id_from_token(token)
 
