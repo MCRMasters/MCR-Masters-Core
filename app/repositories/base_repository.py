@@ -1,3 +1,4 @@
+from abc import ABC
 from typing import Generic, TypeVar, cast
 from uuid import UUID
 
@@ -7,7 +8,7 @@ from sqlmodel import SQLModel, select
 T = TypeVar("T", bound=SQLModel)
 
 
-class BaseRepository(Generic[T]):
+class BaseRepository(Generic[T], ABC):
     def __init__(self, session: AsyncSession, model_class: type[T]):
         self.session = session
         self.model_class = model_class
