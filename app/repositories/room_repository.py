@@ -19,6 +19,6 @@ class RoomRepository(BaseRepository[Room]):
 
     async def get_available_rooms(self) -> list[Room]:
         result = await self.session.execute(
-            select(Room).where(not Room.is_playing),
+            select(Room).where(Room.is_playing == False),  # noqa: E712
         )
         return cast(list[Room], result.scalars().all())
