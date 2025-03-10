@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth import get_current_user
 from app.db.session import get_session
 from app.main import app
 from app.models.user import User
@@ -40,6 +41,16 @@ def mock_session(mocker, mock_user):
     session.execute = AsyncMock(return_value=mock_result)
 
     return session
+
+
+@pytest.fixture
+def mock_auth(mocker, mock_user):
+    mocker.patch(
+        "app.core.auth.get_user_id_from_token",
+        return_value=mock_user.id,
+    )
+
+    return mock_user
 
 
 @pytest.fixture
@@ -134,9 +145,26 @@ def mock_google_responses():
 @pytest_asyncio.fixture
 async def client(mock_session):
     app.dependency_overrides[get_session] = lambda: mock_session
+
     async with AsyncClient(
         transport=ASGITransport(app=app),
         base_url="http://test",
     ) as client:
         yield client
+
+    app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
+async def login_client(mock_session, mock_auth):
+    app.dependency_overrides[get_session] = lambda: mock_session
+    app.dependency_overrides[get_current_user] = lambda: mock_auth
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"Authorization": "Bearer test_token"},
+    ) as client:
+        yield client
+
     app.dependency_overrides.clear()
