@@ -10,8 +10,11 @@ router = APIRouter()
 
 
 @router.get("/login/google", response_model=AuthUrlResponse)
-async def google_login():
-    auth_url = GoogleOAuthService.get_authorization_url()
+async def google_login(
+    session: AsyncSession = Depends(get_session),
+):
+    google_service = GoogleOAuthService(session)
+    auth_url = google_service.get_authorization_url()
     return AuthUrlResponse(auth_url=auth_url)
 
 
@@ -20,4 +23,5 @@ async def google_callback(
     code: str,
     session: AsyncSession = Depends(get_session),
 ):
-    return await GoogleOAuthService.process_google_login(code, session)
+    google_service = GoogleOAuthService(session)
+    return await google_service.process_google_login(code)

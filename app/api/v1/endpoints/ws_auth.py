@@ -15,12 +15,14 @@ async def google_login_ws(
 ):
     await websocket.accept()
     try:
+        google_service = GoogleOAuthService(session)
+
         while True:
             data = await websocket.receive_json()
             action = data.get("action")
             match action:
                 case "get_oauth_url":
-                    auth_url: str = GoogleOAuthService.get_authorization_url()
+                    auth_url: str = google_service.get_authorization_url()
                     await websocket.send_json(
                         {
                             "action": "oauth_url",
@@ -35,11 +37,8 @@ async def google_login_ws(
                             },
                         )
                         continue
-                    token: TokenResponse = (
-                        await GoogleOAuthService.process_google_login(
-                            code=code,
-                            session=session,
-                        )
+                    token: TokenResponse = await google_service.process_google_login(
+                        code=code,
                     )
                     await websocket.send_json(
                         {
