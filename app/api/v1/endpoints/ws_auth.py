@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import get_session
+from app.dependencies.services import get_google_oauth_service
 from app.schemas.token_response import TokenResponse
 from app.services.auth.google import GoogleOAuthService
 
@@ -11,12 +10,10 @@ router = APIRouter()
 @router.websocket("/login/google")
 async def google_login_ws(
     websocket: WebSocket,
-    session: AsyncSession = Depends(get_session),
+    google_service: GoogleOAuthService = Depends(get_google_oauth_service),
 ):
     await websocket.accept()
     try:
-        google_service = GoogleOAuthService(session)
-
         while True:
             data = await websocket.receive_json()
             action = data.get("action")
