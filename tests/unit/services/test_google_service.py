@@ -3,6 +3,7 @@ from fastapi import HTTPException, status
 from httpx import HTTPStatusError
 
 from app.services.auth.google import GoogleOAuthService
+from app.services.auth.user_service import UserService
 
 
 @pytest.mark.asyncio
@@ -11,7 +12,8 @@ async def test_get_google_token_success(
     mock_google_responses,
     mock_session,
 ):
-    service = GoogleOAuthService(mock_session)
+    user_service = UserService(mock_session)
+    service = GoogleOAuthService(mock_session, user_service)
     token_response = await service.get_google_token("test_code")
 
     assert token_response.access_token == "mock_access_token"
@@ -30,7 +32,8 @@ async def test_get_google_token_failure(mocker, mock_session):
         ),
     )
 
-    service = GoogleOAuthService(mock_session)
+    user_service = UserService(mock_session)
+    service = GoogleOAuthService(mock_session, user_service)
     with pytest.raises(HTTPStatusError):
         await service.get_google_token("invalid_code")
 
@@ -41,7 +44,8 @@ async def test_get_user_info_success(
     mock_google_responses,
     mock_session,
 ):
-    service = GoogleOAuthService(mock_session)
+    user_service = UserService(mock_session)
+    service = GoogleOAuthService(mock_session, user_service)
     user_info = await service.get_user_info("mock_access_token")
 
     assert user_info.email == "test@example.com"
@@ -56,7 +60,8 @@ async def test_google_login_success(
     mock_user,
     mocker,
 ):
-    service = GoogleOAuthService(mock_session)
+    user_service = UserService(mock_session)
+    service = GoogleOAuthService(mock_session, user_service)
 
     mocker.patch(
         "app.services.auth.user_service.UserService.get_or_create_user",
@@ -84,7 +89,8 @@ async def test_google_login_failure(mock_session, mocker):
         ),
     )
 
-    service = GoogleOAuthService(mock_session)
+    user_service = UserService(mock_session)
+    service = GoogleOAuthService(mock_session, user_service)
 
     with pytest.raises(HTTPException) as exc_info:
         await service.process_google_login("invalid_code")
