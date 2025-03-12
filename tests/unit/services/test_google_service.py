@@ -1,4 +1,3 @@
-# tests/unit/services/test_user_service.py
 import uuid
 
 import pytest
