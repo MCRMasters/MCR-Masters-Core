@@ -11,13 +11,16 @@ from app.services.auth.user_service import UserService
 router = APIRouter()
 
 
+def get_user_service(session: AsyncSession = Depends(get_session)) -> UserService:
+    return UserService(session)
+
+
 @router.put("/me/nickname", response_model=BaseResponse)
 async def update_user_nickname(
     request: UpdateNicknameRequest,
     current_user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(get_session),
+    user_service: UserService = Depends(get_user_service),
 ):
-    user_service = UserService(session)
     await user_service.update_nickname(current_user.id, request.nickname)
-    await session.commit()
+    await user_service.session.commit()
     return BaseResponse(message="Nickname Update Success")
