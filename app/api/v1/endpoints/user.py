@@ -17,5 +17,4 @@ async def update_user_nickname(
     user_service: UserService = Depends(get_user_service),
 ):
     await user_service.update_nickname(current_user.id, request.nickname)
-    await user_service.session.commit()
     return BaseResponse(message="Nickname Update Success")
