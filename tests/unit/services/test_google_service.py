@@ -1,92 +1,132 @@
-# tests/unit/services/test_google_service.py
+# tests/unit/services/test_user_service.py
+import uuid
+
 import pytest
-from fastapi import HTTPException, status
-from httpx import HTTPStatusError
 
-from app.services.auth.google import GoogleOAuthService
+from app.core.error import DomainErrorCode, MCRDomainError
+from app.models.user import User
 
 
-@pytest.mark.asyncio
-async def test_get_google_token_success(
-    mock_google_client,
-    mock_google_responses,
-    mock_google_service,
-):
-    """Google 토큰 획득 성공 테스트"""
-    token_response = await mock_google_service.get_google_token("test_code")
-
-    assert token_response.access_token == "mock_access_token"
-    assert token_response.refresh_token == "mock_refresh_token"
-    mock_google_client.post.assert_called_once()
+@pytest.fixture
+def user_id():
+    return uuid.uuid4()
 
 
 @pytest.mark.asyncio
-async def test_get_google_token_failure(mocker, mock_session, mock_user_service):
-    mocker.patch(
-        "httpx.AsyncClient.post",
-        side_effect=HTTPStatusError(
-            "Token request failed",
-            request=mocker.Mock(),
-            response=mocker.Mock(status_code=400),
-        ),
-    )
-
-    service = GoogleOAuthService(mock_session, mock_user_service)
-    with pytest.raises(HTTPStatusError):
-        await service.get_google_token("invalid_code")
-
-
-@pytest.mark.asyncio
-async def test_get_user_info_success(
-    mock_google_client,
-    mock_google_responses,
-    mock_google_service,
-):
-    user_info = await mock_google_service.get_user_info("mock_access_token")
-
-    assert user_info.email == "test@example.com"
-    assert user_info.name == "Test User"
-    mock_google_client.get.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_google_login_success(
-    mock_google_client,
-    mock_session,
-    mock_user,
-    mock_user_service,
-    mocker,
-):
-    service = GoogleOAuthService(mock_session, mock_user_service)
+async def test_generate_unique_uid(mock_user_service, mocker):
+    existing_uid = "123456789"
+    new_uid = "987654321"
 
     mocker.patch(
-        "app.services.auth.user_service.UserService.get_or_create_user",
-        return_value=(mock_user, True),
+        "app.repositories.user_repository.UserRepository.get_by_uid",
+        side_effect=[User(uid=existing_uid, nickname=""), None],
     )
 
-    login_response = await service.process_google_login("test_code")
+    mocker.patch(
+        "app.services.auth.user_service.randint",
+        return_value=int(new_uid),
+    )
 
-    assert login_response.is_new_user is True
-    assert "access_token" in login_response.model_dump()
-    assert "refresh_token" in login_response.model_dump()
-
-    mock_google_client.post.assert_called_once()
-    mock_google_client.get.assert_called_once()
+    generated_uid = await mock_user_service.generate_unique_uid()
+    assert generated_uid == new_uid
 
 
 @pytest.mark.asyncio
-async def test_google_login_failure(mock_session, mock_user_service, mocker):
+async def test_get_or_create_user_new(mock_user_service, mocker):
+    user_info = {"email": "new@example.com"}
+
     mocker.patch(
-        "httpx.AsyncClient.post",
-        side_effect=HTTPStatusError(
-            "Token request failed",
-            request=mocker.Mock(),
-            response=mocker.Mock(status_code=400),
-        ),
+        "app.repositories.user_repository.UserRepository.get_by_email",
+        return_value=None,
     )
 
-    service = GoogleOAuthService(mock_session, mock_user_service)
-    with pytest.raises(HTTPException) as exc_info:
-        await service.process_google_login("invalid_code")
+    new_uid = "987654321"
+    mocker.patch(
+        "app.services.auth.user_service.UserService.generate_unique_uid",
+        return_value=new_uid,
+    )
 
-    assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
+    new_user = User(uid=new_uid, email=user_info["email"], nickname="")
+    mocker.patch(
+        "app.repositories.user_repository.UserRepository.create",
+        return_value=new_user,
+    )
+
+    user, is_new_user = await mock_user_service.get_or_create_user(user_info)
+
+    assert is_new_user is True
+    assert user.email == user_info["email"]
+    assert user.uid == new_uid
+    assert user.nickname == ""
+
+
+@pytest.mark.asyncio
+async def test_get_or_create_user_existing(mock_user_service, mocker):
+    user_info = {"email": "existing@example.com"}
+    existing_user = User(
+        uid="123456789",
+        email=user_info["email"],
+        nickname="ExistingUser",
+    )
+
+    mocker.patch(
+        "app.repositories.user_repository.UserRepository.get_by_email",
+        return_value=existing_user,
+    )
+
+    user, is_new_user = await mock_user_service.get_or_create_user(user_info)
+
+    assert is_new_user is False
+    assert user.email == existing_user.email
+    assert user.uid == existing_user.uid
+    assert user.nickname == existing_user.nickname
+
+
+@pytest.mark.asyncio
+async def test_update_nickname_success(mock_user_service, user_id, mocker):
+    user = User(id=user_id, uid="123456789", nickname="")
+
+    mocker.patch(
+        "app.repositories.user_repository.UserRepository.get_by_uuid",
+        return_value=user,
+    )
+
+    updated_user = User(id=user_id, uid="123456789", nickname="NewNickname")
+    mocker.patch(
+        "app.repositories.user_repository.UserRepository.update",
+        return_value=updated_user,
+    )
+
+    result = await mock_user_service.update_nickname(user_id, "NewNickname")
+
+    assert result.nickname == "NewNickname"
+
+
+@pytest.mark.asyncio
+async def test_update_nickname_user_not_found(mock_user_service, user_id, mocker):
+    mocker.patch(
+        "app.repositories.user_repository.UserRepository.get_by_uuid",
+        return_value=None,
+    )
+
+    with pytest.raises(MCRDomainError) as exc_info:
+        await mock_user_service.update_nickname(user_id, "NewNickname")
+
+    assert exc_info.value.code == DomainErrorCode.USER_NOT_FOUND
+    assert str(user_id) in exc_info.value.message
+
+
+@pytest.mark.asyncio
+async def test_update_nickname_already_set(mock_user_service, user_id, mocker):
+    user = User(id=user_id, uid="123456789", nickname="ExistingNickname")
+
+    mocker.patch(
+        "app.repositories.user_repository.UserRepository.get_by_uuid",
+        return_value=user,
+    )
+
+    with pytest.raises(MCRDomainError) as exc_info:
+        await mock_user_service.update_nickname(user_id, "NewNickname")
+
+    assert exc_info.value.code == DomainErrorCode.NICKNAME_ALREADY_SET
+    assert user.nickname in exc_info.value.details["current_nickname"]
