@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.security import create_access_token, create_refresh_token
-from app.repositories.user_repository import UserRepository
 from app.schemas.google_oauth import (
     GoogleAuthParams,
     GoogleTokenRequest,
@@ -75,8 +74,7 @@ class GoogleOAuthService:
 
             user.last_login = datetime.now(UTC)
 
-            user_repository = UserRepository(self.session)
-            await user_repository.update(user)
+            user = await self.user_service.user_repository.update(user)
             await self.session.commit()
 
             access_token = create_access_token(user.id)

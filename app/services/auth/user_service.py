@@ -11,9 +11,13 @@ from app.util.validators import validate_uid
 
 
 class UserService:
-    def __init__(self, session: AsyncSession):
+    def __init__(
+        self,
+        session: AsyncSession,
+        user_repository: UserRepository | None = None,
+    ):
         self.session = session
-        self.user_repository = UserRepository(session)
+        self.user_repository = user_repository or UserRepository(session)
 
     async def generate_unique_uid(self) -> str:
         while True:
@@ -40,6 +44,7 @@ class UserService:
                 nickname="",
             )
             created_user = await self.user_repository.create(new_user)
+            await self.session.commit()
             return created_user, True
 
         return existing_user, existing_user.nickname == ""
@@ -68,4 +73,5 @@ class UserService:
 
         user.nickname = nickname
         updated_user = await self.user_repository.update(user)
+        await self.session.commit()
         return updated_user
