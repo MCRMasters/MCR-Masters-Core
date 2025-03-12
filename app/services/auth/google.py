@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.security import create_access_token, create_refresh_token
+from app.repositories.user_repository import UserRepository
 from app.schemas.google_oauth import (
     GoogleAuthParams,
     GoogleTokenRequest,
@@ -18,8 +19,9 @@ from app.services.auth.user_service import UserService
 
 
 class GoogleOAuthService:
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession, user_service: UserService | None = None):
         self.session = session
+        self.user_service = user_service or UserService(session)
         self.auth_url = settings.GOOGLE_AUTH_URL
         self.token_url = settings.GOOGLE_TOKEN_URL
         self.user_info_url = settings.GOOGLE_USER_INFO_URL
@@ -49,10 +51,7 @@ class GoogleOAuthService:
             )
             response.raise_for_status()
             token_data = response.json()
-            validated_token: GoogleTokenResponse = GoogleTokenResponse.model_validate(
-                token_data,
-            )
-            return validated_token
+            return GoogleTokenResponse.model_validate(token_data)
 
     async def get_user_info(self, access_token: str) -> GoogleUserInfo:
         headers = {"Authorization": f"Bearer {access_token}"}
@@ -63,22 +62,22 @@ class GoogleOAuthService:
             )
             response.raise_for_status()
             user_data = response.json()
-            validated_user: GoogleUserInfo = GoogleUserInfo.model_validate(user_data)
-            return validated_user
+            return GoogleUserInfo.model_validate(user_data)
 
     async def process_google_login(self, code: str) -> TokenResponse:
         try:
             token_info = await self.get_google_token(code)
             user_info = await self.get_user_info(token_info.access_token)
 
-            user_service = UserService(self.session)
-            user, is_new_user = await user_service.get_or_create_user(
+            user, is_new_user = await self.user_service.get_or_create_user(
                 user_info.model_dump(),
             )
 
             user.last_login = datetime.now(UTC)
+
+            user_repository = UserRepository(self.session)
+            await user_repository.update(user)
             await self.session.commit()
-            await self.session.refresh(user)
 
             access_token = create_access_token(user.id)
             refresh_token = create_refresh_token(user.id)
