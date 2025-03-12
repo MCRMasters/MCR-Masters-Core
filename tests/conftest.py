@@ -1,3 +1,4 @@
+# tests/conftest.py
 import asyncio
 from unittest.mock import AsyncMock
 
@@ -9,10 +10,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user
 from app.db.session import get_session
+from app.dependencies.repositories import (
+    get_room_repository,
+    get_room_user_repository,
+    get_user_repository,
+)
+from app.dependencies.services import get_google_oauth_service, get_user_service
 from app.main import app
 from app.models.user import User
+from app.repositories.room_repository import RoomRepository
+from app.repositories.room_user_repository import RoomUserRepository
+from app.repositories.user_repository import UserRepository
 from app.schemas.google_oauth import GoogleTokenResponse, GoogleUserInfo
 from app.schemas.token_response import TokenResponse
+from app.services.auth.google import GoogleOAuthService
+from app.services.auth.user_service import UserService
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -41,6 +53,36 @@ def mock_session(mocker, mock_user):
     session.execute = AsyncMock(return_value=mock_result)
 
     return session
+
+
+@pytest.fixture
+def mock_user_repository(mock_session, mock_user):
+    repository = UserRepository(mock_session)
+    return repository
+
+
+@pytest.fixture
+def mock_room_repository(mock_session):
+    repository = RoomRepository(mock_session)
+    return repository
+
+
+@pytest.fixture
+def mock_room_user_repository(mock_session):
+    repository = RoomUserRepository(mock_session)
+    return repository
+
+
+@pytest.fixture
+def mock_user_service(mock_session, mock_user_repository):
+    service = UserService(mock_session, mock_user_repository)
+    return service
+
+
+@pytest.fixture
+def mock_google_service(mock_session, mock_user_service):
+    service = GoogleOAuthService(mock_session, mock_user_service)
+    return service
 
 
 @pytest.fixture
@@ -143,8 +185,24 @@ def mock_google_responses():
 
 
 @pytest_asyncio.fixture
-async def client(mock_session):
+async def client(
+    mock_session,
+    mock_user_repository,
+    mock_user_service,
+    mock_google_service,
+):
     app.dependency_overrides[get_session] = lambda: mock_session
+
+    app.dependency_overrides[get_user_repository] = lambda: mock_user_repository
+    app.dependency_overrides[get_room_repository] = lambda: mock_room_repository(
+        mock_session,
+    )
+    app.dependency_overrides[get_room_user_repository] = (
+        lambda: mock_room_user_repository(mock_session)
+    )
+
+    app.dependency_overrides[get_user_service] = lambda: mock_user_service
+    app.dependency_overrides[get_google_oauth_service] = lambda: mock_google_service
 
     async with AsyncClient(
         transport=ASGITransport(app=app),
@@ -156,9 +214,26 @@ async def client(mock_session):
 
 
 @pytest_asyncio.fixture
-async def login_client(mock_session, mock_auth):
+async def login_client(
+    mock_session,
+    mock_auth,
+    mock_user_repository,
+    mock_user_service,
+    mock_google_service,
+):
     app.dependency_overrides[get_session] = lambda: mock_session
     app.dependency_overrides[get_current_user] = lambda: mock_auth
+
+    app.dependency_overrides[get_user_repository] = lambda: mock_user_repository
+    app.dependency_overrides[get_room_repository] = lambda: mock_room_repository(
+        mock_session,
+    )
+    app.dependency_overrides[get_room_user_repository] = (
+        lambda: mock_room_user_repository(mock_session)
+    )
+
+    app.dependency_overrides[get_user_service] = lambda: mock_user_service
+    app.dependency_overrides[get_google_oauth_service] = lambda: mock_google_service
 
     async with AsyncClient(
         transport=ASGITransport(app=app),
