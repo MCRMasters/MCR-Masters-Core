@@ -7,8 +7,8 @@ from dotenv import load_dotenv
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import get_current_user
 from app.db.session import get_session
+from app.dependencies.auth import get_current_user
 from app.dependencies.repositories import (
     get_room_repository,
     get_room_user_repository,
@@ -191,7 +191,7 @@ def mock_google_client(mocker, mock_google_responses):
 @pytest.fixture
 def mock_auth(mocker, mock_user):
     mocker.patch(
-        "app.core.auth.get_user_id_from_token",
+        "app.dependencies.auth.get_user_id_from_token",
         return_value=mock_user.id,
     )
 
