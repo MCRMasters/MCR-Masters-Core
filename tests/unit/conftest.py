@@ -1,3 +1,6 @@
+import uuid
+
+import pytest
 import pytest_asyncio
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -89,3 +92,8 @@ async def test_room_user(test_db_session, test_room, test_user) -> RoomUser:
     await test_db_session.refresh(room_user)
 
     return room_user
+
+
+@pytest.fixture
+def user_id():
+    return uuid.uuid4()

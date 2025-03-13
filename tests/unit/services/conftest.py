@@ -7,11 +7,6 @@ from app.schemas.auth.base import TokenResponse
 
 
 @pytest.fixture
-def user_id():
-    return uuid.uuid4()
-
-
-@pytest.fixture
 def test_users():
     return [
         User(
