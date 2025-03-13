@@ -53,3 +53,14 @@ async def test_update_nickname_unauthorized(client):
     )
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.asyncio
+async def test_get_current_user_info(login_client, mock_user):
+    response = await login_client.get("/api/v1/user/me")
+
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["uid"] == mock_user.uid
+    assert data["nickname"] == mock_user.nickname
+    assert data["email"] == mock_user.email
