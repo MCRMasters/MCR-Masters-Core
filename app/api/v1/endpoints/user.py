@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends
 from app.core.auth import get_current_user
 from app.dependencies.services import get_user_service
 from app.models.user import User
-from app.schemas.base_response import BaseResponse
+from app.schemas.common import BaseResponse
 from app.schemas.user import UpdateNicknameRequest
 from app.services.auth.user_service import UserService
 

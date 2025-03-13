@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 
 from app.dependencies.services import get_google_oauth_service
-from app.schemas.token_response import TokenResponse
+from app.schemas.auth.base import TokenResponse
 from app.services.auth.google import GoogleOAuthService
 
 router = APIRouter()

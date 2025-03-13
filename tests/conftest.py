@@ -20,8 +20,8 @@ from app.models.user import User
 from app.repositories.room_repository import RoomRepository
 from app.repositories.room_user_repository import RoomUserRepository
 from app.repositories.user_repository import UserRepository
-from app.schemas.google_oauth import GoogleTokenResponse, GoogleUserInfo
-from app.schemas.token_response import TokenResponse
+from app.schemas.auth.base import TokenResponse
+from app.schemas.auth.google import GoogleTokenResponse, GoogleUserInfo
 from app.services.auth.google import GoogleOAuthService
 from app.services.auth.user_service import UserService
 

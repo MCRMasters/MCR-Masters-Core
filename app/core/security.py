@@ -5,7 +5,7 @@ from jose import jwt
 from jose.exceptions import JWTError
 
 from app.core.config import settings
-from app.schemas.jwt_token_payload import JwtTokenPayload
+from app.schemas.auth.jwt import JwtTokenPayload
 
 
 def create_access_token(user_id: UUID) -> str:
