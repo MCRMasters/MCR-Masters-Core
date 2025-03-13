@@ -29,6 +29,7 @@ httpx = "^0.28.1"
 pytest-asyncio = "^0.25.3"
 psycopg2-binary = "^2.9.10"
 pytest-mock = "^3.14.0"
+pytest-cov = "^6.0.0"
 
 [tool.poetry.scripts]
 start = "scripts.cli:start_dev_server"
@@ -37,6 +38,7 @@ migrate = "scripts.cli:run_migrations"
 migrate-down = "scripts.cli:rollback_migration"
 migrate-create = "scripts.cli:create_migration"
 init-db = "scripts.cli:initialize_db"
+coverage = "scripts.cli:run_coverage"
 
 [tool.mypy]
 python_version = "3.12"

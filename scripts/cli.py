@@ -3,6 +3,7 @@ import sys
 
 import alembic.config
 import uvicorn
+from pytest import main as pytest_main
 
 from app.db.session import init_db
 
@@ -39,3 +40,9 @@ def create_migration() -> None:
 
 def initialize_db() -> None:
     asyncio.run(init_db())
+
+
+def run_coverage() -> None:
+    sys.exit(
+        pytest_main(["--cov=app", "--cov-report=term-missing", "--no-cov-on-fail"]),
+    )
