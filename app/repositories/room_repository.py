@@ -11,7 +11,7 @@ class RoomRepository(BaseRepository[Room]):
     def __init__(self, session: AsyncSession):
         super().__init__(session, Room)
 
-    async def get_by_room_number(self, room_number: str) -> Room | None:
+    async def get_by_room_number(self, room_number: int) -> Room | None:
         result = await self.session.execute(
             select(Room).where(Room.room_number == room_number),
         )
