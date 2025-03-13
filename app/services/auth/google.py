@@ -7,13 +7,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.security import create_access_token, create_refresh_token
-from app.schemas.google_oauth import (
+from app.schemas.auth.base import TokenResponse
+from app.schemas.auth.google import (
     GoogleAuthParams,
     GoogleTokenRequest,
     GoogleTokenResponse,
     GoogleUserInfo,
 )
-from app.schemas.token_response import TokenResponse
 from app.services.auth.user_service import UserService
 
 

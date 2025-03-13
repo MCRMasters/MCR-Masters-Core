@@ -1,8 +1,8 @@
 """initial migrate
 
-Revision ID: 66513b501de1
+Revision ID: 4f8435f098f5
 Revises:
-Create Date: 2025-03-07 02:19:37.896644
+Create Date: 2025-03-13 17:34:55.408426
 
 """
 
@@ -14,7 +14,7 @@ import sqlmodel
 
 
 # revision identifiers, used by Alembic.
-revision: str = "66513b501de1"
+revision: str = "4f8435f098f5"
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -56,6 +56,7 @@ def upgrade() -> None:
     op.create_index(op.f("ix_room_room_number"), "room", ["room_number"], unique=True)
     op.create_table(
         "roomuser",
+        sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("room_id", sa.Uuid(), nullable=False),
         sa.Column("user_id", sa.Uuid(), nullable=False),
         sa.Column("is_ready", sa.Boolean(), nullable=False),
@@ -67,7 +68,7 @@ def upgrade() -> None:
             ["user_id"],
             ["user.id"],
         ),
-        sa.PrimaryKeyConstraint("room_id", "user_id"),
+        sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("user_id"),
     )
     # ### end Alembic commands ###
