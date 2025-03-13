@@ -19,19 +19,21 @@ class UserService:
         self.session = session
         self.user_repository = user_repository or UserRepository(session)
 
-    async def generate_unique_uid(self) -> str:
-        while True:
-            uid = str(randint(100000000, 999999999))
+    async def generate_unique_uid(self, max_attempts: int = 10) -> str:
+        for _ in range(max_attempts):
+            uid = validate_uid(str(randint(100000000, 999999999)))
 
-            try:
-                validate_uid(uid)
-                existing_user = await self.user_repository.get_by_uid(uid)
+            existing_user = await self.user_repository.get_by_uid(uid)
+            if not existing_user:
+                return uid
 
-                if not existing_user:
-                    return uid
-
-            except Exception:
-                continue
+        raise MCRDomainError(
+            code=DomainErrorCode.UID_CREATE_FAILED,
+            message=f"Cannot create uid after {max_attempts} tries",
+            details={
+                "max_attempts": max_attempts,
+            },
+        )
 
     async def get_or_create_user(self, user_info: dict[str, Any]) -> tuple[User, bool]:
         existing_user = await self.user_repository.get_by_email(user_info["email"])
