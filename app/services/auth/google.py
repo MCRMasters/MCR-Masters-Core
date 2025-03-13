@@ -14,68 +14,68 @@ from app.schemas.google_oauth import (
     GoogleUserInfo,
 )
 from app.schemas.token_response import TokenResponse
-from app.services.auth.user_service import get_or_create_user
+from app.services.auth.user_service import UserService
 
 
 class GoogleOAuthService:
-    @staticmethod
-    def get_authorization_url() -> str:
-        params = GoogleAuthParams(
-            client_id=settings.GOOGLE_CLIENT_ID,
-            redirect_uri=settings.GOOGLE_REDIRECT_URI,
-        )
-        return f"{settings.GOOGLE_AUTH_URL}?{urlencode(params.model_dump())}"
+    def __init__(self, session: AsyncSession, user_service: UserService | None = None):
+        self.session = session
+        self.user_service = user_service or UserService(session)
+        self.auth_url = settings.GOOGLE_AUTH_URL
+        self.token_url = settings.GOOGLE_TOKEN_URL
+        self.user_info_url = settings.GOOGLE_USER_INFO_URL
+        self.client_id = settings.GOOGLE_CLIENT_ID
+        self.client_secret = settings.GOOGLE_CLIENT_SECRET
+        self.redirect_uri = settings.GOOGLE_REDIRECT_URI
 
-    @staticmethod
-    async def get_google_token(code: str) -> GoogleTokenResponse:
+    def get_authorization_url(self) -> str:
+        params = GoogleAuthParams(
+            client_id=self.client_id,
+            redirect_uri=self.redirect_uri,
+        )
+        return f"{self.auth_url}?{urlencode(params.model_dump())}"
+
+    async def get_google_token(self, code: str) -> GoogleTokenResponse:
         token_request = GoogleTokenRequest(
-            client_id=settings.GOOGLE_CLIENT_ID,
-            client_secret=settings.GOOGLE_CLIENT_SECRET,
+            client_id=self.client_id,
+            client_secret=self.client_secret,
             code=code,
-            redirect_uri=settings.GOOGLE_REDIRECT_URI,
+            redirect_uri=self.redirect_uri,
         )
 
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                settings.GOOGLE_TOKEN_URL,
+                self.token_url,
                 data=token_request.to_dict(),
             )
             response.raise_for_status()
             token_data = response.json()
-            validated_token: GoogleTokenResponse = GoogleTokenResponse.model_validate(
-                token_data,
-            )
-            return validated_token
+            return GoogleTokenResponse.model_validate(token_data)
 
-    @staticmethod
-    async def get_user_info(access_token: str) -> GoogleUserInfo:
+    async def get_user_info(self, access_token: str) -> GoogleUserInfo:
         headers = {"Authorization": f"Bearer {access_token}"}
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                settings.GOOGLE_USER_INFO_URL,
+                self.user_info_url,
                 headers=headers,
             )
             response.raise_for_status()
             user_data = response.json()
-            validated_user: GoogleUserInfo = GoogleUserInfo.model_validate(user_data)
-            return validated_user
+            return GoogleUserInfo.model_validate(user_data)
 
-    @staticmethod
-    async def process_google_login(
-        code: str,
-        session: AsyncSession,
-    ) -> TokenResponse:
+    async def process_google_login(self, code: str) -> TokenResponse:
         try:
-            token_info = await GoogleOAuthService.get_google_token(code)
-            user_info = await GoogleOAuthService.get_user_info(token_info.access_token)
-            user, is_new_user = await get_or_create_user(
-                session,
+            token_info = await self.get_google_token(code)
+            user_info = await self.get_user_info(token_info.access_token)
+
+            user, is_new_user = await self.user_service.get_or_create_user(
                 user_info.model_dump(),
             )
 
             user.last_login = datetime.now(UTC)
-            await session.commit()
-            await session.refresh(user)
+
+            user = await self.user_service.user_repository.update(user)
+            await self.session.commit()
 
             access_token = create_access_token(user.id)
             refresh_token = create_refresh_token(user.id)

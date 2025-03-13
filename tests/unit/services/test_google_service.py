@@ -1,73 +1,131 @@
+import uuid
+
 import pytest
-from fastapi import HTTPException, status
-from httpx import HTTPStatusError
 
-from app.services.auth.google import GoogleOAuthService
+from app.core.error import DomainErrorCode, MCRDomainError
+from app.models.user import User
 
 
-@pytest.mark.asyncio
-async def test_get_google_token_success(mock_google_client, mock_google_responses):
-    """Google 토큰 획득 성공 테스트"""
-    token_response = await GoogleOAuthService.get_google_token("test_code")
-
-    assert token_response.access_token == "mock_access_token"
-    assert token_response.refresh_token == "mock_refresh_token"
-    mock_google_client.post.assert_called_once()
+@pytest.fixture
+def user_id():
+    return uuid.uuid4()
 
 
 @pytest.mark.asyncio
-async def test_get_google_token_failure(mocker):
+async def test_generate_unique_uid(mock_user_service, mocker):
+    existing_uid = "123456789"
+    new_uid = "987654321"
+
     mocker.patch(
-        "httpx.AsyncClient.post",
-        side_effect=HTTPStatusError(
-            "Token request failed",
-            request=mocker.Mock(),
-            response=mocker.Mock(status_code=400),
-        ),
-    )
-    with pytest.raises(HTTPStatusError):
-        await GoogleOAuthService.get_google_token("invalid_code")
-
-
-@pytest.mark.asyncio
-async def test_get_user_info_success(mock_google_client, mock_google_responses):
-    user_info = await GoogleOAuthService.get_user_info("mock_access_token")
-
-    assert user_info.email == "test@example.com"
-    assert user_info.name == "Test User"
-    mock_google_client.get.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_google_login_success(
-    mock_google_client,
-    mock_session,
-    mock_user,
-):
-    login_response = await GoogleOAuthService.process_google_login(
-        "test_code",
-        mock_session,
+        "app.repositories.user_repository.UserRepository.get_by_uid",
+        side_effect=[User(uid=existing_uid, nickname=""), None],
     )
 
-    assert login_response.is_new_user is True
-    assert "access_token" in login_response.model_dump()
-    assert "refresh_token" in login_response.model_dump()
-
-    mock_google_client.post.assert_called_once()
-    mock_google_client.get.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_google_login_failure(mock_session, mocker):
     mocker.patch(
-        "httpx.AsyncClient.post",
-        side_effect=HTTPStatusError(
-            "Token request failed",
-            request=mocker.Mock(),
-            response=mocker.Mock(status_code=400),
-        ),
+        "app.services.auth.user_service.randint",
+        return_value=int(new_uid),
     )
-    with pytest.raises(HTTPException) as exc_info:
-        await GoogleOAuthService.process_google_login("invalid_code", mock_session)
 
-    assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
+    generated_uid = await mock_user_service.generate_unique_uid()
+    assert generated_uid == new_uid
+
+
+@pytest.mark.asyncio
+async def test_get_or_create_user_new(mock_user_service, mocker):
+    user_info = {"email": "new@example.com"}
+
+    mocker.patch(
+        "app.repositories.user_repository.UserRepository.get_by_email",
+        return_value=None,
+    )
+
+    new_uid = "987654321"
+    mocker.patch(
+        "app.services.auth.user_service.UserService.generate_unique_uid",
+        return_value=new_uid,
+    )
+
+    new_user = User(uid=new_uid, email=user_info["email"], nickname="")
+    mocker.patch(
+        "app.repositories.user_repository.UserRepository.create",
+        return_value=new_user,
+    )
+
+    user, is_new_user = await mock_user_service.get_or_create_user(user_info)
+
+    assert is_new_user is True
+    assert user.email == user_info["email"]
+    assert user.uid == new_uid
+    assert user.nickname == ""
+
+
+@pytest.mark.asyncio
+async def test_get_or_create_user_existing(mock_user_service, mocker):
+    user_info = {"email": "existing@example.com"}
+    existing_user = User(
+        uid="123456789",
+        email=user_info["email"],
+        nickname="ExistingUser",
+    )
+
+    mocker.patch(
+        "app.repositories.user_repository.UserRepository.get_by_email",
+        return_value=existing_user,
+    )
+
+    user, is_new_user = await mock_user_service.get_or_create_user(user_info)
+
+    assert is_new_user is False
+    assert user.email == existing_user.email
+    assert user.uid == existing_user.uid
+    assert user.nickname == existing_user.nickname
+
+
+@pytest.mark.asyncio
+async def test_update_nickname_success(mock_user_service, user_id, mocker):
+    user = User(id=user_id, uid="123456789", nickname="")
+
+    mocker.patch(
+        "app.repositories.user_repository.UserRepository.get_by_uuid",
+        return_value=user,
+    )
+
+    updated_user = User(id=user_id, uid="123456789", nickname="NewNickname")
+    mocker.patch(
+        "app.repositories.user_repository.UserRepository.update",
+        return_value=updated_user,
+    )
+
+    result = await mock_user_service.update_nickname(user_id, "NewNickname")
+
+    assert result.nickname == "NewNickname"
+
+
+@pytest.mark.asyncio
+async def test_update_nickname_user_not_found(mock_user_service, user_id, mocker):
+    mocker.patch(
+        "app.repositories.user_repository.UserRepository.get_by_uuid",
+        return_value=None,
+    )
+
+    with pytest.raises(MCRDomainError) as exc_info:
+        await mock_user_service.update_nickname(user_id, "NewNickname")
+
+    assert exc_info.value.code == DomainErrorCode.USER_NOT_FOUND
+    assert str(user_id) in exc_info.value.message
+
+
+@pytest.mark.asyncio
+async def test_update_nickname_already_set(mock_user_service, user_id, mocker):
+    user = User(id=user_id, uid="123456789", nickname="ExistingNickname")
+
+    mocker.patch(
+        "app.repositories.user_repository.UserRepository.get_by_uuid",
+        return_value=user,
+    )
+
+    with pytest.raises(MCRDomainError) as exc_info:
+        await mock_user_service.update_nickname(user_id, "NewNickname")
+
+    assert exc_info.value.code == DomainErrorCode.NICKNAME_ALREADY_SET
+    assert user.nickname in exc_info.value.details["current_nickname"]

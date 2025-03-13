@@ -23,7 +23,7 @@ async def test_update_nickname_already_set(login_client, mock_user, mocker):
     mock_user.nickname = "nickname"
 
     mocker.patch(
-        "app.services.auth.user_service.update_nickname",
+        "app.services.auth.user_service.UserService.update_nickname",
         side_effect=MCRDomainError(
             code=DomainErrorCode.NICKNAME_ALREADY_SET,
             message="Nickname already set and cannot be changed",
