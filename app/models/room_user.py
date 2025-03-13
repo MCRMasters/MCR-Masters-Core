@@ -4,7 +4,7 @@ from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 
-class RoomUser(SQLModel, table=True):  # type: ignore[call-arg]
+class RoomUser(SQLModel, table=True, tablename="room_user"):  # type: ignore[call-arg]
     id: UUID = Field(
         default_factory=uuid4,
         primary_key=True,
