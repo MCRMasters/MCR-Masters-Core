@@ -25,7 +25,7 @@ async def test_host(test_db_session) -> User:
 async def test_room(test_db_session, test_host) -> Room:
     room = Room(
         name="Test Room",
-        room_number="TEST123",
+        room_number=123,
         max_users=4,
         is_playing=False,
         host_id=test_host.id,
@@ -42,7 +42,7 @@ async def test_room(test_db_session, test_host) -> Room:
 async def test_playing_room(test_db_session, test_host) -> Room:
     room = Room(
         name="Playing Room",
-        room_number="PLAY456",
+        room_number=456,
         max_users=4,
         is_playing=True,
         host_id=test_host.id,
@@ -95,7 +95,7 @@ async def test_get_available_rooms(test_db_session, test_room, test_playing_room
 async def test_create_room(test_db_session, test_host):
     room = Room(
         name="New Room",
-        room_number="NEW789",
+        room_number=789,
         max_users=4,
         is_playing=False,
         host_id=test_host.id,

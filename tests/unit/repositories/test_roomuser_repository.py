@@ -43,7 +43,7 @@ async def test_users(test_db_session) -> list[User]:
 async def test_room(test_db_session, test_users) -> Room:
     room = Room(
         name="Test Room",
-        room_number="TEST123",
+        room_number=123,
         max_users=4,
         is_playing=False,
         host_id=test_users[0].id,
