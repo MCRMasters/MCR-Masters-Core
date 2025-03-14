@@ -7,8 +7,8 @@ from dotenv import load_dotenv
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import get_current_user
 from app.db.session import get_session
+from app.dependencies.auth import get_current_user
 from app.dependencies.repositories import (
     get_room_repository,
     get_room_user_repository,
@@ -82,84 +82,6 @@ def mock_user_service(mock_session, mock_user_repository):
 def mock_google_service(mock_session, mock_user_service):
     service = GoogleOAuthService(mock_session, mock_user_service)
     return service
-
-
-@pytest.fixture
-def mock_auth(mocker, mock_user):
-    mocker.patch(
-        "app.core.auth.get_user_id_from_token",
-        return_value=mock_user.id,
-    )
-
-    return mock_user
-
-
-@pytest.fixture
-def mock_google_client(mocker, mock_google_responses):
-    def _create_mock_response(response_data):
-        mock_response = mocker.Mock()
-        mock_response.json.return_value = response_data
-        mock_response.raise_for_status.return_value = None
-        return mock_response
-
-    mock_client = mocker.AsyncMock()
-    mock_client.__aenter__.return_value = mock_client
-
-    mock_client.post.return_value = _create_mock_response(
-        mock_google_responses["token_response"],
-    )
-    mock_client.get.return_value = _create_mock_response(
-        mock_google_responses["userinfo_response"],
-    )
-
-    mocker.patch("httpx.AsyncClient", return_value=mock_client)
-    yield mock_client
-
-
-@pytest.fixture
-def mock_websocket_client(mocker, mock_google_responses):
-    mock_websocket = AsyncMock()
-
-    send_queue = asyncio.Queue()
-    receive_queue = asyncio.Queue()
-
-    async def mock_send_json(message):
-        await send_queue.put(message)
-
-        if message["action"] == "get_oauth_url":
-            await receive_queue.put(
-                {"action": "oauth_url", "auth_url": "https://mock.auth.url"},
-            )
-        elif message["action"] == "auth":
-            if "code" not in message or not message["code"]:
-                await receive_queue.put({"error": "No code in auth"})
-            elif message["code"] == "test_code":
-                token_response = TokenResponse(
-                    access_token="mock_access_token",
-                    refresh_token="mock_refresh_token",
-                    is_new_user=True,
-                )
-                await receive_queue.put(
-                    {
-                        "action": "auth_success",
-                        "access_token": token_response.access_token,
-                        "refresh_token": token_response.refresh_token,
-                        "is_new_user": token_response.is_new_user,
-                        "token_type": token_response.token_type,
-                    },
-                )
-            else:
-                await receive_queue.put({"error": "Invalid OAuth code"})
-        else:
-            await receive_queue.put({"error": f"Invalid action: {message['action']}"})
-
-    async def mock_receive_json():
-        return await receive_queue.get()
-
-    mock_websocket.send_json.side_effect = mock_send_json
-    mock_websocket.receive_json.side_effect = mock_receive_json
-
-    return mock_websocket
 
 
 @pytest.fixture
@@ -242,3 +164,81 @@ async def login_client(
         yield client
 
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def mock_google_client(mocker, mock_google_responses):
+    def _create_mock_response(response_data):
+        mock_response = mocker.Mock()
+        mock_response.json.return_value = response_data
+        mock_response.raise_for_status.return_value = None
+        return mock_response
+
+    mock_client = mocker.AsyncMock()
+    mock_client.__aenter__.return_value = mock_client
+
+    mock_client.post.return_value = _create_mock_response(
+        mock_google_responses["token_response"],
+    )
+    mock_client.get.return_value = _create_mock_response(
+        mock_google_responses["userinfo_response"],
+    )
+
+    mocker.patch("httpx.AsyncClient", return_value=mock_client)
+    yield mock_client
+
+
+@pytest.fixture
+def mock_auth(mocker, mock_user):
+    mocker.patch(
+        "app.dependencies.auth.get_user_id_from_token",
+        return_value=mock_user.id,
+    )
+
+    return mock_user
+
+
+@pytest.fixture
+def mock_websocket_client(mocker):
+    mock_websocket = AsyncMock()
+
+    send_queue = asyncio.Queue()
+    receive_queue = asyncio.Queue()
+
+    async def mock_send_json(message):
+        await send_queue.put(message)
+
+        if message["action"] == "get_oauth_url":
+            await receive_queue.put(
+                {"action": "oauth_url", "auth_url": "https://mock.auth.url"},
+            )
+        elif message["action"] == "auth":
+            if "code" not in message or not message["code"]:
+                await receive_queue.put({"error": "No code in auth"})
+            elif message["code"] == "test_code":
+                token_response = TokenResponse(
+                    access_token="mock_access_token",
+                    refresh_token="mock_refresh_token",
+                    is_new_user=True,
+                )
+                await receive_queue.put(
+                    {
+                        "action": "auth_success",
+                        "access_token": token_response.access_token,
+                        "refresh_token": token_response.refresh_token,
+                        "is_new_user": token_response.is_new_user,
+                        "token_type": token_response.token_type,
+                    },
+                )
+            else:
+                await receive_queue.put({"error": "Invalid OAuth code"})
+        else:
+            await receive_queue.put({"error": f"Invalid action: {message['action']}"})
+
+    async def mock_receive_json():
+        return await receive_queue.get()
+
+    mock_websocket.send_json.side_effect = mock_send_json
+    mock_websocket.receive_json.side_effect = mock_receive_json
+
+    return mock_websocket

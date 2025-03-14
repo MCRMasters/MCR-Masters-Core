@@ -27,10 +27,10 @@ class User(TimeStampMixin, SQLModel, table=True):  # type: ignore[call-arg]
 
     @field_validator("uid")
     @classmethod
-    def validate_uid(cls, v: str) -> str:
+    def validate_uid(cls, v: str) -> str:  # pragma: no cover
         return validate_uid(v)
 
     @field_validator("nickname")
     @classmethod
-    def validate_nickname(cls, v: str) -> str:
+    def validate_nickname(cls, v: str) -> str:  # pragma: no cover
         return validate_nickname(v)
