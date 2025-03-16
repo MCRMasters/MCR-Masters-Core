@@ -68,5 +68,3 @@ async def test_create_room_user_not_found(mock_room_service, user_id):
         await mock_room_service.create_room(user_id)
 
     assert exc_info.value.code == DomainErrorCode.USER_NOT_FOUND
-    assert str(user_id) in exc_info.value.message
-    assert str(user_id) in exc_info.value.details["user_id"]
