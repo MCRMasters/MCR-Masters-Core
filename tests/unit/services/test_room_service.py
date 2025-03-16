@@ -5,7 +5,6 @@ import pytest_asyncio
 
 from app.core.error import DomainErrorCode, MCRDomainError
 from app.models.room import Room
-from app.models.room_user import RoomUser
 from app.models.user import User
 from app.services.room_service import RoomService
 
@@ -48,12 +47,9 @@ async def test_create_room_success(mock_room_service, user_id, room_id):
         is_playing=False,
         host_id=user_id,
     )
-    room_user = RoomUser(room_id=room_id, user_id=user_id, is_ready=True)
 
     mock_room_service.user_repository.get_by_uuid.return_value = host
-    mock_room_service.room_user_repository.get_by_user.return_value = None
     mock_room_service.room_repository.create.return_value = room
-    mock_room_service.room_user_repository.create.return_value = room_user
 
     created_room = await mock_room_service.create_room(user_id)
 
@@ -72,17 +68,5 @@ async def test_create_room_user_not_found(mock_room_service, user_id):
         await mock_room_service.create_room(user_id)
 
     assert exc_info.value.code == DomainErrorCode.USER_NOT_FOUND
-
-
-@pytest.mark.asyncio
-async def test_create_room_user_already_in_room(mock_room_service, user_id, room_id):
-    host = User(id=user_id, uid="123456789", nickname="HostUser")
-    existing_room_user = RoomUser(room_id=room_id, user_id=user_id, is_ready=True)
-
-    mock_room_service.user_repository.get_by_uuid.return_value = host
-    mock_room_service.room_user_repository.get_by_user.return_value = existing_room_user
-
-    with pytest.raises(MCRDomainError) as exc_info:
-        await mock_room_service.create_room(user_id)
-
-    assert exc_info.value.code == DomainErrorCode.USER_ALREADY_IN_ROOM
+    assert str(user_id) in exc_info.value.message
+    assert str(user_id) in exc_info.value.details["user_id"]

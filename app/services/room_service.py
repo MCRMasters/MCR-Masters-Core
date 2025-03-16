@@ -5,7 +5,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.error import DomainErrorCode, MCRDomainError
 from app.models.room import Room
-from app.models.room_user import RoomUser
 from app.repositories.room_repository import RoomRepository
 from app.repositories.room_user_repository import RoomUserRepository
 from app.repositories.user_repository import UserRepository
@@ -42,17 +41,6 @@ class RoomService:
                 details={"user_id": str(user_id)},
             )
 
-        existing_room_user = await self.room_user_repository.get_by_user(user_id)
-        if existing_room_user:
-            raise MCRDomainError(
-                code=DomainErrorCode.USER_ALREADY_IN_ROOM,
-                message="User is already in a room",
-                details={
-                    "user_id": str(user_id),
-                    "room_id": str(existing_room_user.room_id),
-                },
-            )
-
         room = Room(
             name=self._generate_random_room_name(),
             max_users=4,
@@ -61,14 +49,6 @@ class RoomService:
         )
 
         created_room = await self.room_repository.create(room)
-
-        room_user = RoomUser(
-            room_id=created_room.id,
-            user_id=user_id,
-            is_ready=True,
-        )
-
-        await self.room_user_repository.create(room_user)
         await self.session.commit()
 
         return created_room
