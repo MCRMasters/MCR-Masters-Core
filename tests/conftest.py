@@ -14,7 +14,11 @@ from app.dependencies.repositories import (
     get_room_user_repository,
     get_user_repository,
 )
-from app.dependencies.services import get_google_oauth_service, get_user_service
+from app.dependencies.services import (
+    get_google_oauth_service,
+    get_room_service,
+    get_user_service,
+)
 from app.main import app
 from app.models.user import User
 from app.repositories.room_repository import RoomRepository
@@ -24,6 +28,7 @@ from app.schemas.auth.base import TokenResponse
 from app.schemas.auth.google import GoogleTokenResponse, GoogleUserInfo
 from app.services.auth.google import GoogleOAuthService
 from app.services.auth.user_service import UserService
+from app.services.room_service import RoomService
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -85,6 +90,22 @@ def mock_google_service(mock_session, mock_user_service):
 
 
 @pytest.fixture
+def mock_room_service(
+    mock_session,
+    mock_room_repository,
+    mock_room_user_repository,
+    mock_user_repository,
+):
+    service = RoomService(
+        session=mock_session,
+        room_repository=mock_room_repository,
+        room_user_repository=mock_room_user_repository,
+        user_repository=mock_user_repository,
+    )
+    return service
+
+
+@pytest.fixture
 def mock_google_responses():
     return {
         "token_response": GoogleTokenResponse(
@@ -109,21 +130,23 @@ def mock_google_responses():
 async def client(
     mock_session,
     mock_user_repository,
+    mock_room_repository,
+    mock_room_user_repository,
     mock_user_service,
     mock_google_service,
+    mock_room_service,
 ):
     app.dependency_overrides[get_session] = lambda: mock_session
 
     app.dependency_overrides[get_user_repository] = lambda: mock_user_repository
-    app.dependency_overrides[get_room_repository] = lambda: mock_room_repository(
-        mock_session,
-    )
+    app.dependency_overrides[get_room_repository] = lambda: mock_room_repository
     app.dependency_overrides[get_room_user_repository] = (
-        lambda: mock_room_user_repository(mock_session)
+        lambda: mock_room_user_repository
     )
 
     app.dependency_overrides[get_user_service] = lambda: mock_user_service
     app.dependency_overrides[get_google_oauth_service] = lambda: mock_google_service
+    app.dependency_overrides[get_room_service] = lambda: mock_room_service
 
     async with AsyncClient(
         transport=ASGITransport(app=app),
@@ -139,22 +162,24 @@ async def login_client(
     mock_session,
     mock_auth,
     mock_user_repository,
+    mock_room_repository,
+    mock_room_user_repository,
     mock_user_service,
     mock_google_service,
+    mock_room_service,
 ):
     app.dependency_overrides[get_session] = lambda: mock_session
     app.dependency_overrides[get_current_user] = lambda: mock_auth
 
     app.dependency_overrides[get_user_repository] = lambda: mock_user_repository
-    app.dependency_overrides[get_room_repository] = lambda: mock_room_repository(
-        mock_session,
-    )
+    app.dependency_overrides[get_room_repository] = lambda: mock_room_repository
     app.dependency_overrides[get_room_user_repository] = (
-        lambda: mock_room_user_repository(mock_session)
+        lambda: mock_room_user_repository
     )
 
     app.dependency_overrides[get_user_service] = lambda: mock_user_service
     app.dependency_overrides[get_google_oauth_service] = lambda: mock_google_service
+    app.dependency_overrides[get_room_service] = lambda: mock_room_service
 
     async with AsyncClient(
         transport=ASGITransport(app=app),
