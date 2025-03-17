@@ -89,7 +89,7 @@ select = [
     "PL",   # pylint
     "TRY",  # try-except style
 ]
-ignore = ["PLR2004"]
+ignore = ["PLR2004", "COM812"]
 exclude = ["migrations/*"]
 
 [tool.ruff.lint.mccabe]
