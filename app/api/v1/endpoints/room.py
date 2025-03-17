@@ -41,3 +41,18 @@ async def join_room(
 ):
     await room_service.join_room(current_user.id, room.id)
     return BaseResponse(message="Room joined successfully")
+
+
+@router.post(
+    "/{room_number}/toggle-ready",
+    response_model=BaseResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def toggle_ready(
+    room: Room = Depends(get_room_by_number),
+    current_user: User = Depends(get_current_user),
+    room_service: RoomService = Depends(get_room_service),
+) -> BaseResponse:
+    room_user = await room_service.toggle_ready(current_user.id, room.id)
+    status_msg = "ready" if room_user.is_ready else "not ready"
+    return BaseResponse(message=f"User is now {status_msg}")

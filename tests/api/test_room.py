@@ -178,3 +178,70 @@ async def test_join_room_user_already_in_room(login_client, mock_user, mocker):
     assert data["error_details"]["user_id"] == str(mock_user.id)
     assert "current_room_number" in data["error_details"]
     assert data["error_details"]["current_room_number"] == another_room_number
+
+
+@pytest.mark.asyncio
+async def test_toggle_ready_success(login_client, mock_user, mocker):
+    room_number = 12345
+    room_user = RoomUser(
+        id=uuid.uuid4(), room_id=uuid.uuid4(), user_id=mock_user.id, is_ready=True
+    )
+
+    mocker.patch(
+        "app.services.room_service.RoomService.toggle_ready",
+        return_value=room_user,
+    )
+
+    response = await login_client.post(f"/api/v1/room/{room_number}/toggle-ready")
+
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["message"] == "User is now ready"
+
+
+@pytest.mark.asyncio
+async def test_toggle_ready_to_unready(login_client, mock_user, mocker):
+    room_number = 12345
+    room_user = RoomUser(
+        id=uuid.uuid4(), room_id=uuid.uuid4(), user_id=mock_user.id, is_ready=False
+    )
+
+    mocker.patch(
+        "app.services.room_service.RoomService.toggle_ready",
+        return_value=room_user,
+    )
+
+    response = await login_client.post(f"/api/v1/room/{room_number}/toggle-ready")
+
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["message"] == "User is now not ready"
+
+
+@pytest.mark.asyncio
+async def test_toggle_ready_host_error(login_client, mock_user, mocker):
+    room_number = 12345
+
+    mocker.patch(
+        "app.services.room_service.RoomService.toggle_ready",
+        side_effect=MCRDomainError(
+            code=DomainErrorCode.HOST_CANNOT_READY,
+            message="Host cannot toggle ready status",
+            details={"user_id": str(mock_user.id)},
+        ),
+    )
+
+    response = await login_client.post(f"/api/v1/room/{room_number}/toggle-ready")
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    data = response.json()
+    assert data["code"] == DomainErrorCode.HOST_CANNOT_READY.value
+    assert "Host cannot toggle" in data["detail"]
+
+
+@pytest.mark.asyncio
+async def test_toggle_ready_unauthorized(client):
+    room_number = 12345
+    response = await client.post(f"/api/v1/room/{room_number}/toggle-ready")
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
