@@ -56,3 +56,16 @@ async def toggle_ready(
     room_user = await room_service.toggle_ready(current_user.id, room.id)
     status_msg = "ready" if room_user.is_ready else "not ready"
     return BaseResponse(message=f"User is now {status_msg}")
+
+
+@router.post(
+    "/leave",
+    response_model=BaseResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def leave_room(
+    current_user: User = Depends(get_current_user),
+    room_service: RoomService = Depends(get_room_service),
+) -> BaseResponse:
+    await room_service.leave_room(current_user.id)
+    return BaseResponse(message="Room left successfully")

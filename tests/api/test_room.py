@@ -245,3 +245,61 @@ async def test_toggle_ready_unauthorized(client):
     response = await client.post(f"/api/v1/room/{room_number}/toggle-ready")
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.asyncio
+async def test_leave_room_success(login_client, mock_user, mocker):
+    mocker.patch(
+        "app.services.room_service.RoomService.leave_room",
+        return_value=None,
+    )
+
+    response = await login_client.post("/api/v1/room/leave")
+
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["message"] == "Room left successfully"
+
+
+@pytest.mark.asyncio
+async def test_leave_room_unauthorized(client):
+    response = await client.post("/api/v1/room/leave")
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.asyncio
+async def test_leave_room_not_found(login_client, mock_user, mocker):
+    room_number = 99999
+    mocker.patch(
+        "app.services.room_service.RoomService.leave_room",
+        side_effect=MCRDomainError(
+            code=DomainErrorCode.ROOM_NOT_FOUND,
+            message=f"Room with number {room_number} not found",
+            details={"room_number": room_number},
+        ),
+    )
+
+    response = await login_client.post("/api/v1/room/leave")
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    data = response.json()
+    assert data["code"] == DomainErrorCode.ROOM_NOT_FOUND.value
+
+
+@pytest.mark.asyncio
+async def test_leave_room_user_not_in_room(login_client, mock_user, mocker):
+    mocker.patch(
+        "app.services.room_service.RoomService.leave_room",
+        side_effect=MCRDomainError(
+            code=DomainErrorCode.USER_NOT_IN_ROOM,
+            message="User is not in room",
+            details={"user_id": str(mock_user.id)},
+        ),
+    )
+
+    response = await login_client.post("/api/v1/room/leave")
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    data = response.json()
+    assert data["code"] == DomainErrorCode.USER_NOT_IN_ROOM.value
