@@ -38,7 +38,6 @@ async def mock_room_service(mocker):
     return service
 
 
-@pytest.mark.skip
 @pytest.mark.asyncio
 async def test_create_room_success(mock_room_service, user_id, room_id):
     host = User(id=user_id, uid="123456789", nickname="HostUser")
@@ -53,7 +52,7 @@ async def test_create_room_success(mock_room_service, user_id, room_id):
         is_playing=False,
         host_id=user_id,
     )
-    mock_room_service.room_repository.create.return_value = room
+    mock_room_service.room_repository.create_with_room_number.return_value = room
 
     mock_room_service.room_repository.get_by_uuid.return_value = room
 
