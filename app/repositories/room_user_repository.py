@@ -23,3 +23,12 @@ class RoomUserRepository(BaseRepository[RoomUser]):
             select(RoomUser).where(RoomUser.user_id == user_id),
         )
         return cast(RoomUser | None, result.scalar_one_or_none())
+
+    async def delete_by_user(self, user_id: UUID) -> None:
+        result = await self.session.execute(
+            select(RoomUser).where(RoomUser.user_id == user_id),
+        )
+        entity = result.scalar_one_or_none()
+        if entity:
+            await self.session.delete(entity)
+            await self.session.flush()

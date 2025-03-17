@@ -133,3 +133,18 @@ async def test_create_and_update_room_user(test_db_session, test_room):
     check = await repo.get_by_user(new_user.id)
     assert check is not None
     assert check.is_ready is True
+
+
+@pytest.mark.asyncio
+async def test_delete_by_user(test_db_session, test_users, test_room, test_room_users):
+    repo = RoomUserRepository(test_db_session)
+
+    await repo.delete_by_user(test_users[0].id)
+
+    result = await repo.get_by_user(test_users[0].id)
+    assert result is None
+
+    result = await repo.get_by_user(test_users[1].id)
+    assert result is not None
+    assert result.user_id == test_users[1].id
+    assert result.room_id == test_room.id
