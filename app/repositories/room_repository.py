@@ -1,6 +1,6 @@
 from typing import cast
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.room import Room
@@ -22,3 +22,12 @@ class RoomRepository(BaseRepository[Room]):
             select(Room).where(Room.is_playing == False),  # noqa: E712
         )
         return cast(list[Room], result.scalars().all())
+
+    async def _generate_room_number(self) -> int:
+        result = await self.session.execute(select(func.max(Room.room_number)))
+        max_room_number = result.scalar() or 0
+        return max_room_number + 1
+
+    async def create_with_room_number(self, room: Room) -> Room:
+        room.room_number = await self._generate_room_number()
+        return await self.create(room)

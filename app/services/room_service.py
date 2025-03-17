@@ -66,7 +66,7 @@ class RoomService:
             host_id=user_id,
         )
 
-        created_room = await self.room_repository.create(room)
+        created_room = await self.room_repository.create_with_room_number(room)
         return created_room
 
     async def join_room(self, user_id: UUID, room_id: UUID) -> RoomUser:
