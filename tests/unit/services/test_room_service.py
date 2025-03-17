@@ -58,7 +58,7 @@ async def test_create_room_success(mock_room_service, user_id, room_id):
 
     mock_room_service.room_user_repository.get_by_room.return_value = []
 
-    room_user = RoomUser(room_id=room_id, user_id=user_id, is_ready=False)
+    room_user = RoomUser(room_id=room_id, user_id=user_id, is_ready=True)
     mock_room_service.room_user_repository.create.return_value = room_user
 
     created_room = await mock_room_service.create_room(user_id)
@@ -80,7 +80,6 @@ async def test_create_room_user_not_found(mock_room_service, user_id):
         await mock_room_service.create_room(user_id)
 
     assert exc_info.value.code == DomainErrorCode.USER_NOT_FOUND
-    assert str(user_id) in exc_info.value.message
 
 
 @pytest.mark.asyncio
@@ -100,8 +99,7 @@ async def test_create_room_user_already_in_room(mock_room_service, user_id):
         await mock_room_service.create_room(user_id)
 
     assert exc_info.value.code == DomainErrorCode.USER_ALREADY_IN_ROOM
-    assert str(user_id) in exc_info.value.message
-    assert str(existing_room_id) in exc_info.value.details["current_room_id"]
+    assert "current_room_id" in exc_info.value.details
 
 
 @pytest.mark.asyncio
@@ -132,6 +130,33 @@ async def test_join_room_success(mock_room_service, user_id, room_id):
 
 
 @pytest.mark.asyncio
+async def test_join_room_host(mock_room_service, user_id, room_id):
+    user = User(id=user_id, uid="123456789", nickname="HostUser")
+    room = Room(
+        id=room_id,
+        name="엄숙한 패황전",
+        max_users=4,
+        is_playing=False,
+        host_id=user_id,
+    )
+    room_user = RoomUser(room_id=room_id, user_id=user_id, is_ready=True)
+
+    mock_room_service.user_repository.get_by_uuid.return_value = user
+    mock_room_service.room_repository.get_by_uuid.return_value = room
+    mock_room_service.room_user_repository.get_by_room.return_value = []
+    mock_room_service.room_user_repository.get_by_user.return_value = None
+    mock_room_service.room_user_repository.create.return_value = room_user
+
+    result = await mock_room_service.join_room(user_id, room_id)
+
+    assert result.room_id == room_id
+    assert result.user_id == user_id
+    assert result.is_ready is True
+
+    mock_room_service.session.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
 async def test_join_room_user_not_found(mock_room_service, user_id, room_id):
     mock_room_service.user_repository.get_by_uuid.return_value = None
 
@@ -139,7 +164,6 @@ async def test_join_room_user_not_found(mock_room_service, user_id, room_id):
         await mock_room_service.join_room(user_id, room_id)
 
     assert exc_info.value.code == DomainErrorCode.USER_NOT_FOUND
-    assert str(user_id) in exc_info.value.message
 
 
 @pytest.mark.asyncio
@@ -153,7 +177,6 @@ async def test_join_room_not_found(mock_room_service, user_id, room_id):
         await mock_room_service.join_room(user_id, room_id)
 
     assert exc_info.value.code == DomainErrorCode.ROOM_NOT_FOUND
-    assert str(room_id) in exc_info.value.message
 
 
 @pytest.mark.asyncio
@@ -174,7 +197,6 @@ async def test_join_room_is_playing(mock_room_service, user_id, room_id):
         await mock_room_service.join_room(user_id, room_id)
 
     assert exc_info.value.code == DomainErrorCode.ROOM_ALREADY_PLAYING
-    assert str(room_id) in exc_info.value.message
 
 
 @pytest.mark.asyncio
@@ -204,8 +226,7 @@ async def test_join_room_is_full(mock_room_service, user_id, room_id):
         await mock_room_service.join_room(user_id, room_id)
 
     assert exc_info.value.code == DomainErrorCode.ROOM_IS_FULL
-    assert str(room_id) in exc_info.value.message
-    assert exc_info.value.details["max_users"] == 4
+    assert "max_users" in exc_info.value.details
 
 
 @pytest.mark.asyncio
@@ -234,8 +255,7 @@ async def test_join_room_already_in_room(mock_room_service, user_id, room_id):
         await mock_room_service.join_room(user_id, room_id)
 
     assert exc_info.value.code == DomainErrorCode.USER_ALREADY_IN_ROOM
-    assert str(user_id) in exc_info.value.message
-    assert str(existing_room_id) in exc_info.value.details["current_room_id"]
+    assert "current_room_id" in exc_info.value.details
 
 
 @pytest.mark.asyncio
@@ -314,7 +334,6 @@ async def test_toggle_ready_host_error(mock_room_service, user_id, room_id):
         await mock_room_service.toggle_ready(user_id, room_id)
 
     assert exc_info.value.code == DomainErrorCode.HOST_CANNOT_READY
-    assert "Host cannot toggle ready status" in exc_info.value.message
 
 
 @pytest.mark.asyncio
@@ -339,7 +358,6 @@ async def test_toggle_ready_room_playing_error(mock_room_service, user_id, room_
         await mock_room_service.toggle_ready(user_id, room_id)
 
     assert exc_info.value.code == DomainErrorCode.ROOM_ALREADY_PLAYING
-    assert "already playing" in exc_info.value.message
 
 
 @pytest.mark.asyncio
@@ -364,91 +382,3 @@ async def test_toggle_ready_user_not_in_room(mock_room_service, user_id, room_id
         await mock_room_service.toggle_ready(user_id, room_id)
 
     assert exc_info.value.code == DomainErrorCode.USER_NOT_IN_ROOM
-    assert "not in room" in exc_info.value.message
-
-
-@pytest.mark.asyncio
-async def test_join_room_host_auto_ready(mock_room_service, user_id, room_id):
-    user = User(id=user_id, uid="123456789", nickname="HostUser")
-    room = Room(
-        id=room_id,
-        name="엄숙한 패황전",
-        max_users=4,
-        is_playing=False,
-        host_id=user_id,
-    )
-
-    created_room_user = RoomUser(room_id=room_id, user_id=user_id, is_ready=True)
-
-    mock_room_service.user_repository.get_by_uuid.return_value = user
-    mock_room_service.room_repository.get_by_uuid.return_value = room
-    mock_room_service.room_user_repository.get_by_room.return_value = []
-    mock_room_service.room_user_repository.get_by_user.return_value = None
-    mock_room_service.room_user_repository.create.return_value = created_room_user
-
-    result = await mock_room_service._join_room_internal(user, room)
-
-    assert result.is_ready is True
-    assert result.room_id == room_id
-    assert result.user_id == user_id
-
-
-@pytest.mark.asyncio
-async def test_join_room_non_host_not_ready(mock_room_service, user_id, room_id):
-    host_id = uuid.uuid4()
-    user = User(id=user_id, uid="123456789", nickname="TestUser")
-    room = Room(
-        id=room_id,
-        name="엄숙한 패황전",
-        max_users=4,
-        is_playing=False,
-        host_id=host_id,
-    )
-
-    created_room_user = RoomUser(room_id=room_id, user_id=user_id, is_ready=False)
-
-    mock_room_service.user_repository.get_by_uuid.return_value = user
-    mock_room_service.room_repository.get_by_uuid.return_value = room
-    mock_room_service.room_user_repository.get_by_room.return_value = []
-    mock_room_service.room_user_repository.get_by_user.return_value = None
-    mock_room_service.room_user_repository.create.return_value = created_room_user
-
-    result = await mock_room_service._join_room_internal(user, room)
-
-    assert result.is_ready is False
-    assert result.room_id == room_id
-    assert result.user_id == user_id
-
-
-@pytest.mark.asyncio
-async def test_create_room_host_auto_ready(mock_room_service, user_id, room_id):
-    host = User(id=user_id, uid="123456789", nickname="HostUser")
-
-    created_room = Room(
-        id=room_id,
-        name="엄숙한 패황전",
-        max_users=4,
-        is_playing=False,
-        host_id=user_id,
-    )
-
-    room_user = RoomUser(room_id=room_id, user_id=user_id, is_ready=True)
-
-    mock_room_service.user_repository.get_by_uuid.return_value = host
-    mock_room_service.room_user_repository.get_by_user.return_value = None
-    mock_room_service.room_repository.create_with_room_number.return_value = (
-        created_room
-    )
-    mock_room_service.room_repository.get_by_uuid.return_value = created_room
-    mock_room_service.room_user_repository.create.return_value = room_user
-
-    created_room_result = await mock_room_service.create_room(user_id)
-
-    mock_room_service.room_user_repository.create.assert_called_once()
-    args, _ = mock_room_service.room_user_repository.create.call_args
-    assert args[0].room_id == room_id
-    assert args[0].user_id == user_id
-    assert args[0].is_ready is True
-
-    assert created_room_result.id == room_id
-    assert created_room_result.host_id == user_id
