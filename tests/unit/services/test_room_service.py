@@ -382,3 +382,138 @@ async def test_toggle_ready_user_not_in_room(mock_room_service, user_id, room_id
         await mock_room_service.toggle_ready(user_id, room_id)
 
     assert exc_info.value.code == DomainErrorCode.USER_NOT_IN_ROOM
+
+
+@pytest.mark.asyncio
+async def test_leave_room_only_user(mock_room_service, user_id, room_id):
+    user = User(id=user_id, uid="123456789", nickname="TestUser")
+    room = Room(
+        id=room_id,
+        name="엄숙한 패황전",
+        max_users=4,
+        is_playing=False,
+        host_id=user_id,
+    )
+    room_user = RoomUser(room_id=room_id, user_id=user_id, is_ready=True)
+
+    mock_room_service.user_repository.get_by_uuid.return_value = user
+    mock_room_service.room_user_repository.get_by_user.return_value = room_user
+    mock_room_service.room_repository.get_by_uuid.return_value = room
+
+    mock_room_service.room_user_repository.get_by_room.return_value = []
+    mock_room_service.room_repository.delete.return_value = None
+
+    await mock_room_service.leave_room(user_id)
+
+    mock_room_service.room_repository.delete.assert_awaited_once_with(room_id)
+
+
+@pytest.mark.asyncio
+async def test_leave_room_host_with_others(mock_room_service, user_id, room_id):
+    host_id = user_id
+    other_user_id = uuid.uuid4()
+
+    user = User(id=host_id, uid="123456789", nickname="HostUser")
+    room = Room(
+        id=room_id,
+        name="엄숙한 패황전",
+        max_users=4,
+        is_playing=False,
+        host_id=host_id,
+    )
+    host_room_user = RoomUser(room_id=room_id, user_id=host_id, is_ready=True)
+    other_room_user = RoomUser(room_id=room_id, user_id=other_user_id, is_ready=False)
+
+    mock_room_service.user_repository.get_by_uuid.return_value = user
+    mock_room_service.room_user_repository.get_by_user.return_value = host_room_user
+    mock_room_service.room_repository.get_by_uuid.return_value = room
+    mock_room_service.room_user_repository.get_by_room.return_value = [other_room_user]
+
+    await mock_room_service.leave_room(host_id)
+
+    assert room.host_id == other_user_id
+    assert other_room_user.is_ready is True
+
+
+@pytest.mark.asyncio
+async def test_leave_room_non_host(mock_room_service, user_id, room_id):
+    host_id = uuid.uuid4()
+    non_host_id = user_id
+
+    user = User(id=non_host_id, uid="123456789", nickname="RegularUser")
+    room = Room(
+        id=room_id,
+        name="엄숙한 패황전",
+        max_users=4,
+        is_playing=False,
+        host_id=host_id,
+    )
+    host_room_user = RoomUser(room_id=room_id, user_id=host_id, is_ready=True)
+    non_host_room_user = RoomUser(room_id=room_id, user_id=non_host_id, is_ready=False)
+
+    mock_room_service.user_repository.get_by_uuid.return_value = user
+    mock_room_service.room_user_repository.get_by_user.return_value = non_host_room_user
+    mock_room_service.room_repository.get_by_uuid.return_value = room
+    mock_room_service.room_user_repository.get_by_room.return_value = [host_room_user]
+
+    original_delete_by_user = mock_room_service.room_user_repository.delete_by_user
+    delete_calls = []
+
+    async def mock_delete_by_user(user_id):
+        delete_calls.append(user_id)
+        await original_delete_by_user(user_id)
+
+    mock_room_service.room_user_repository.delete_by_user = mock_delete_by_user
+
+    await mock_room_service.leave_room(non_host_id)
+
+    assert non_host_id in delete_calls
+    assert room.host_id == host_id
+
+
+@pytest.mark.asyncio
+async def test_leave_room_playing_error(mock_room_service, user_id, room_id):
+    user = User(id=user_id, uid="123456789", nickname="TestUser")
+    room = Room(
+        id=room_id,
+        name="엄숙한 패황전",
+        max_users=4,
+        is_playing=True,
+        host_id=uuid.uuid4(),
+    )
+    room_user = RoomUser(room_id=room_id, user_id=user_id, is_ready=True)
+
+    mock_room_service.user_repository.get_by_uuid.return_value = user
+    mock_room_service.room_user_repository.get_by_user.return_value = room_user
+    mock_room_service.room_repository.get_by_uuid.return_value = room
+
+    with pytest.raises(MCRDomainError) as exc_info:
+        await mock_room_service.leave_room(user_id)
+
+    assert exc_info.value.code == DomainErrorCode.ROOM_ALREADY_PLAYING
+    assert str(room_id) in exc_info.value.details["room_id"]
+
+
+@pytest.mark.asyncio
+async def test_leave_room_user_not_found(mock_room_service, user_id):
+    mock_room_service.user_repository.get_by_uuid.return_value = None
+
+    with pytest.raises(MCRDomainError) as exc_info:
+        await mock_room_service.leave_room(user_id)
+
+    assert exc_info.value.code == DomainErrorCode.USER_NOT_FOUND
+    assert str(user_id) in exc_info.value.details["user_id"]
+
+
+@pytest.mark.asyncio
+async def test_leave_room_user_not_in_room(mock_room_service, user_id):
+    user = User(id=user_id, uid="123456789", nickname="TestUser")
+
+    mock_room_service.user_repository.get_by_uuid.return_value = user
+    mock_room_service.room_user_repository.get_by_user.return_value = None
+
+    with pytest.raises(MCRDomainError) as exc_info:
+        await mock_room_service.leave_room(user_id)
+
+    assert exc_info.value.code == DomainErrorCode.USER_NOT_IN_ROOM
+    assert str(user_id) in exc_info.value.details["user_id"]

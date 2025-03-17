@@ -174,3 +174,58 @@ class RoomService:
 
         updated_room_user = await self.room_user_repository.update(room_user)
         return updated_room_user
+
+    async def leave_room(self, user_id: UUID) -> None:
+        user = await self.user_repository.get_by_uuid(user_id)
+        if not user:
+            raise MCRDomainError(
+                code=DomainErrorCode.USER_NOT_FOUND,
+                message=f"User with ID {user_id} not found",
+                details={"user_id": str(user_id)},
+            )
+
+        room_user = await self.room_user_repository.get_by_user(user_id)
+        if not room_user:
+            raise MCRDomainError(
+                code=DomainErrorCode.USER_NOT_IN_ROOM,
+                message=f"User with ID {user_id} is not in any room",
+                details={"user_id": str(user_id)},
+            )
+
+        room_id = room_user.room_id
+        room = await self.room_repository.get_by_uuid(room_id)
+        if not room:
+            raise MCRDomainError(
+                code=DomainErrorCode.ROOM_NOT_FOUND,
+                message=f"Room with ID {room_id} not found",
+                details={"room_id": str(room_id)},
+            )
+
+        if room.is_playing:
+            raise MCRDomainError(
+                code=DomainErrorCode.ROOM_ALREADY_PLAYING,
+                message=f"Cannot leave room with ID {room_id} while playing",
+                details={"room_id": str(room_id)},
+            )
+
+        await self._leave_room_internal(user, room)
+
+        await self.session.commit()
+
+    async def _leave_room_internal(self, user: User, room: Room) -> None:
+        room_id = room.id
+        is_host = room.host_id == user.id
+
+        await self.room_user_repository.delete_by_user(user.id)
+
+        room_users = await self.room_user_repository.get_by_room(room_id)
+
+        if not room_users:
+            await self.room_repository.delete(room_id)
+        elif is_host:
+            new_host_user = room_users[0]
+            room.host_id = new_host_user.user_id
+            await self.room_repository.update(room)
+
+            new_host_user.is_ready = True
+            await self.room_user_repository.update(new_host_user)
