@@ -25,8 +25,12 @@ import pytest
     ],
 )
 async def test_ws_google_login(mock_websocket_client, message, expected_response):
-    await mock_websocket_client.send_json(message)
+    # 메시지 전송
+    await mock_websocket_client.send_json_and_get_response(message)
+
+    # 응답 수신
     response = await mock_websocket_client.receive_json()
 
+    # 응답 검증
     for key, value in expected_response.items():
         assert response.get(key) == value
