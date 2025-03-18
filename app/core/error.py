@@ -12,6 +12,7 @@ class DomainErrorCode(str, Enum):
     ROOM_NOT_FOUND = "ROOM_NOT_FOUND"
     ROOM_IS_FULL = "ROOM_IS_FULL"
     ROOM_ALREADY_PLAYING = "ROOM_ALREADY_PLAYING"
+    ROOM_NOT_PLAYING = "ROOM_NOT_PLAYING"
 
 
 class MCRDomainError(Exception):
