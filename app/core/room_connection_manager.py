@@ -1,6 +1,12 @@
 from uuid import UUID
 
-from fastapi import WebSocket
+from fastapi import WebSocket, status
+
+from app.core.security import get_user_id_from_token
+from app.models.user import User
+from app.repositories.room_repository import RoomRepository
+from app.repositories.room_user_repository import RoomUserRepository
+from app.repositories.user_repository import UserRepository
 
 
 class RoomConnectionManager:
@@ -57,6 +63,38 @@ class RoomConnectionManager:
             room_id in self.active_connections
             and user_id in self.active_connections[room_id]
         )
+
+    @staticmethod
+    async def authenticate_and_validate_connection(
+        websocket: WebSocket,
+        room_number: int,
+        room_repository: RoomRepository,
+        room_user_repository: RoomUserRepository,
+        user_repository: UserRepository,
+    ) -> tuple[UUID | None, UUID | None, User | None]:
+        token = websocket.headers.get("authorization")
+        if not token:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return None, None, None
+
+        user_id = get_user_id_from_token(token)
+        if not user_id:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return None, None, None
+
+        user = await user_repository.get_by_uuid(user_id)
+        room = await room_repository.get_by_room_number(room_number)
+
+        if not user or not room:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return None, None, None
+
+        room_user = await room_user_repository.get_by_user(user_id)
+        if not room_user or room_user.room_id != room.id:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return None, None, None
+
+        return user_id, room.id, user
 
 
 room_manager = RoomConnectionManager()
