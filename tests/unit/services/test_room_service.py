@@ -236,3 +236,75 @@ async def test_join_room_already_in_room(mock_room_service, user_id, room_id):
     assert exc_info.value.code == DomainErrorCode.USER_ALREADY_IN_ROOM
     assert str(user_id) in exc_info.value.message
     assert str(existing_room_id) in exc_info.value.details["current_room_id"]
+
+
+@pytest.mark.asyncio
+async def test_end_game_success(mock_room_service, user_id, room_id):
+    host_id = user_id
+    another_user_id = uuid.uuid4()
+
+    room = Room(
+        id=room_id,
+        name="테스트 방",
+        max_users=4,
+        is_playing=True,
+        host_id=host_id,
+    )
+
+    room_users = [
+        RoomUser(id=uuid.uuid4(), room_id=room_id, user_id=host_id, is_ready=True),
+        RoomUser(
+            id=uuid.uuid4(), room_id=room_id, user_id=another_user_id, is_ready=True
+        ),
+    ]
+
+    mock_room_service.room_repository.get_by_uuid.return_value = room
+    mock_room_service.room_user_repository.get_by_room.return_value = room_users
+
+    updated_room = Room(
+        id=room_id,
+        name="테스트 방",
+        max_users=4,
+        is_playing=False,
+        host_id=host_id,
+    )
+
+    mock_room_service.room_repository.update.return_value = updated_room
+
+    result = await mock_room_service.end_game(room_id)
+
+    assert result.id == room_id
+    assert result.is_playing is False
+    assert mock_room_service.session.commit.called
+
+    mock_room_service.room_user_repository.update.assert_called()
+
+
+@pytest.mark.asyncio
+async def test_end_game_room_not_found(mock_room_service, room_id):
+    mock_room_service.room_repository.get_by_uuid.return_value = None
+
+    with pytest.raises(MCRDomainError) as exc_info:
+        await mock_room_service.end_game(room_id)
+
+    assert exc_info.value.code == DomainErrorCode.ROOM_NOT_FOUND
+    assert str(room_id) in exc_info.value.message
+
+
+@pytest.mark.asyncio
+async def test_end_game_room_not_playing(mock_room_service, user_id, room_id):
+    room = Room(
+        id=room_id,
+        name="Test Room",
+        max_users=4,
+        is_playing=False,
+        host_id=user_id,
+    )
+
+    mock_room_service.room_repository.get_by_uuid.return_value = room
+
+    with pytest.raises(MCRDomainError) as exc_info:
+        await mock_room_service.end_game(room_id)
+
+    assert exc_info.value.code == DomainErrorCode.ROOM_NOT_PLAYING
+    assert str(room_id) in exc_info.value.message

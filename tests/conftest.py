@@ -267,3 +267,38 @@ def mock_websocket_client(mocker):
     mock_websocket.receive_json.side_effect = mock_receive_json
 
     return mock_websocket
+
+
+@pytest.fixture
+def mock_room_service_for_game_server(mocker):
+    service = mocker.AsyncMock()
+    return service
+
+
+@pytest_asyncio.fixture
+async def internal_api_client(
+    mock_session,
+    mock_user_repository,
+    mock_room_repository,
+    mock_room_user_repository,
+    mock_user_service,
+    mock_room_service_for_game_server,
+):
+    app.dependency_overrides[get_session] = lambda: mock_session
+    app.dependency_overrides[get_user_repository] = lambda: mock_user_repository
+    app.dependency_overrides[get_room_repository] = lambda: mock_room_repository
+    app.dependency_overrides[get_room_user_repository] = (
+        lambda: mock_room_user_repository
+    )
+    app.dependency_overrides[get_user_service] = lambda: mock_user_service
+    app.dependency_overrides[get_room_service] = (
+        lambda: mock_room_service_for_game_server
+    )
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as client:
+        yield client
+
+    app.dependency_overrides.clear()
