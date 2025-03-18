@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.error import DomainErrorCode, MCRDomainError
 from app.models.room import Room
 from app.models.room_user import RoomUser
+from app.models.user import User
 from app.repositories.room_repository import RoomRepository
 from app.repositories.room_user_repository import RoomUserRepository
 from app.repositories.user_repository import UserRepository
@@ -152,3 +153,54 @@ class RoomService:
             result.append(room_data)
 
         return result
+
+    async def validate_room_user_connection(
+        self, user_id: UUID, room_number: int
+    ) -> tuple[User, Room, RoomUser]:
+        user = await self.user_repository.get_by_uuid(user_id)
+        if not user:
+            raise MCRDomainError(
+                code=DomainErrorCode.USER_NOT_FOUND,
+                message=f"User with ID {user_id} not found",
+                details={"user_id": str(user_id)},
+            )
+
+        room = await self.room_repository.get_by_room_number(room_number)
+        if not room:
+            raise MCRDomainError(
+                code=DomainErrorCode.ROOM_NOT_FOUND,
+                message=f"Room with number {room_number} not found",
+                details={"room_number": room_number},
+            )
+
+        room_user = await self.room_user_repository.get_by_user(user_id)
+        if not room_user or room_user.room_id != room.id:
+            raise MCRDomainError(
+                code=DomainErrorCode.USER_ALREADY_IN_ROOM,
+                message=f"User with ID {user_id} not in the specified room",
+                details={
+                    "user_id": str(user_id),
+                    "room_number": room_number,
+                },
+            )
+
+        return user, room, room_user
+
+    async def update_user_ready_status(
+        self, user_id: UUID, room_id: UUID, is_ready: bool
+    ) -> RoomUser:
+        room_user = await self.room_user_repository.get_by_user(user_id)
+        if not room_user or room_user.room_id != room_id:
+            raise MCRDomainError(
+                code=DomainErrorCode.USER_NOT_FOUND,
+                message="User not found in the specified room",
+                details={
+                    "user_id": str(user_id),
+                    "room_id": str(room_id),
+                },
+            )
+
+        room_user.is_ready = is_ready
+        updated_room_user = await self.room_user_repository.update(room_user)
+        await self.session.commit()
+        return updated_room_user
