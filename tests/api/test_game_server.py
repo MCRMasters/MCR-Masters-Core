@@ -1,5 +1,4 @@
 import uuid
-from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import status
@@ -8,37 +7,16 @@ from app.core.error import DomainErrorCode, MCRDomainError
 from app.models.room import Room
 
 
-# test_game_server.py에서 사용할 mock_session 픽스처 재정의
-@pytest.fixture
-def mock_session(mocker):
-    """게임 서버 테스트를 위한 mock_session 픽스처"""
-    session = AsyncMock()
-
-    # 기본적으로 execute 메서드는 AsyncMock으로 설정
-    session.execute = AsyncMock()
-
-    return session
-
-
 @pytest.mark.asyncio
-async def test_end_game_success(client, mocker, mock_session):
+async def test_end_game_success(login_client):
+    client, mocks = login_client
+
+    # 방 정보 설정
     room_number = 12345
     room_id = uuid.uuid4()
     host_id = uuid.uuid4()
 
-    room = Room(
-        id=room_id,
-        name="Test Room",
-        room_number=room_number,
-        max_users=4,
-        is_playing=True,
-        host_id=host_id,
-    )
-
-    mock_result = mocker.Mock()
-    mock_result.scalar_one_or_none.return_value = room
-    mock_session.execute.return_value = mock_result
-
+    # 게임 종료 후 업데이트된 방 객체 모킹
     updated_room = Room(
         id=room_id,
         name="Test Room",
@@ -48,36 +26,42 @@ async def test_end_game_success(client, mocker, mock_session):
         host_id=host_id,
     )
 
-    mocker.patch(
-        "app.services.room_service.RoomService.end_game", return_value=updated_room
-    )
+    # 라우터에서 사용할 의존성 응답 모킹
+    mocks["services"]["room_service"].end_game.return_value = updated_room
 
+    # API 호출
     response = await client.post(f"/internal/game-server/rooms/{room_number}/end-game")
 
+    # 응답 검증
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert data["message"] == "Game ended successfully"
 
+    # 서비스 호출 검증 - get_room_by_number로부터 room을 받아옴
+    # 직접적인 호출 검증이 어렵지만 호출 자체는 검증
+    mocks["services"]["room_service"].end_game.assert_called_once()
+
 
 @pytest.mark.asyncio
-async def test_end_game_room_not_found(client, mocker, mock_session):
+async def test_end_game_room_not_found(login_client):
+    client, mocks = login_client
+
+    # 방 번호 설정
     room_number = 99999
 
-    # Room not found 예외 생성
+    # room_service.end_game에서 예외 발생 모킹
     error = MCRDomainError(
         code=DomainErrorCode.ROOM_NOT_FOUND,
         message=f"Room with number {room_number} not found",
         details={"room_number": room_number},
     )
 
-    mock_result = mocker.Mock()
-    mock_result.scalar_one_or_none.return_value = None
-    mock_session.execute.return_value = mock_result
+    mocks["services"]["room_service"].end_game.side_effect = error
 
-    mocker.patch("app.dependencies.repositories.get_room_by_number", side_effect=error)
-
+    # API 호출
     response = await client.post(f"/internal/game-server/rooms/{room_number}/end-game")
 
+    # 응답 검증
     assert response.status_code == status.HTTP_404_NOT_FOUND
     data = response.json()
     assert data["code"] == DomainErrorCode.ROOM_NOT_FOUND.value
@@ -86,34 +70,26 @@ async def test_end_game_room_not_found(client, mocker, mock_session):
 
 
 @pytest.mark.asyncio
-async def test_end_game_room_not_playing(client, mocker, mock_session):
+async def test_end_game_room_not_playing(login_client):
+    client, mocks = login_client
+
+    # 방 정보 설정
     room_number = 12345
     room_id = uuid.uuid4()
-    host_id = uuid.uuid4()
 
-    room = Room(
-        id=room_id,
-        name="Test Room",
-        room_number=room_number,
-        max_users=4,
-        is_playing=False,
-        host_id=host_id,
-    )
-
-    mock_result = mocker.Mock()
-    mock_result.scalar_one_or_none.return_value = room
-    mock_session.execute.return_value = mock_result
-
+    # 게임 중이 아닌 방에 대한 에러 모킹
     error = MCRDomainError(
         code=DomainErrorCode.ROOM_NOT_PLAYING,
         message=f"Room with ID {room_id} is not currently playing",
         details={"room_id": str(room_id)},
     )
 
-    mocker.patch("app.services.room_service.RoomService.end_game", side_effect=error)
+    mocks["services"]["room_service"].end_game.side_effect = error
 
+    # API 호출
     response = await client.post(f"/internal/game-server/rooms/{room_number}/end-game")
 
+    # 응답 검증
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     data = response.json()
     assert data["code"] == DomainErrorCode.ROOM_NOT_PLAYING.value
