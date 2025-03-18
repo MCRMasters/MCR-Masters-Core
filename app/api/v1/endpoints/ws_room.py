@@ -3,17 +3,10 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, status
 from pydantic import ValidationError
 
+from app.core.error import MCRDomainError
 from app.core.room_connection_manager import room_manager
-from app.dependencies.repositories import (
-    get_room_repository,
-    get_room_user_repository,
-    get_user_repository,
-)
-from app.models.room_user import RoomUser
-from app.models.user import User
-from app.repositories.room_repository import RoomRepository
-from app.repositories.room_user_repository import RoomUserRepository
-from app.repositories.user_repository import UserRepository
+from app.core.security import get_user_id_from_token
+from app.dependencies.services import get_room_service
 from app.schemas.ws import (
     UserJoinedData,
     UserLeftData,
@@ -22,6 +15,7 @@ from app.schemas.ws import (
     WebSocketResponse,
     WSActionType,
 )
+from app.services.room_service import RoomService
 
 router = APIRouter()
 
@@ -31,44 +25,39 @@ class RoomWebSocketHandler:
         self,
         websocket: WebSocket,
         room_number: int,
-        room_repository: RoomRepository,
-        room_user_repository: RoomUserRepository,
-        user_repository: UserRepository,
+        room_service: RoomService,
     ):
         self.websocket = websocket
         self.room_number = room_number
-        self.room_repository = room_repository
-        self.room_user_repository = room_user_repository
-        self.user_repository = user_repository
+        self.room_service = room_service
 
         self.user_id: UUID | None = None
         self.room_id: UUID | None = None
-        self.user: User | None = None
-        self.room_user: RoomUser | None = None
+        self.user = None
+        self.room_user = None
 
     async def handle_connection(self):
         try:
-            auth_result = await room_manager.authenticate_and_validate_connection(
-                self.websocket,
-                self.room_number,
-                self.room_repository,
-                self.room_user_repository,
-                self.user_repository,
+            token = self.websocket.headers.get("authorization")
+            if not token:
+                await self.websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                return False
+
+            user_id = get_user_id_from_token(token)
+            if not user_id:
+                await self.websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                return False
+
+            (
+                self.user,
+                room,
+                self.room_user,
+            ) = await self.room_service.validate_room_user_connection(
+                user_id, self.room_number
             )
 
-            if not all(auth_result):
-                return False
-
-            self.user_id, self.room_id, _ = auth_result
-
-            if not self.user_id or not self.room_id:
-                return False
-
-            self.user = await self.user_repository.get_by_uuid(self.user_id)
-            self.room_user = await self.room_user_repository.get_by_user(self.user_id)
-
-            if not self.user or not self.room_user:
-                return False
+            self.user_id = self.user.id
+            self.room_id = room.id
 
             await room_manager.connect(self.websocket, self.room_id, self.user_id)
 
@@ -90,6 +79,11 @@ class RoomWebSocketHandler:
 
             await self.handle_messages()
 
+        except MCRDomainError as e:
+            await self.websocket.close(
+                code=status.WS_1008_POLICY_VIOLATION, reason=str(e)
+            )
+            return False
         except WebSocketDisconnect:
             await self.handle_disconnection()
             return False
@@ -151,13 +145,16 @@ class RoomWebSocketHandler:
             )
 
     async def handle_ready(self, message: WebSocketMessage):
-        if self.room_user and self.room_id:
+        if self.room_user and self.room_id and self.user_id:
             is_ready = message.data.get("is_ready", False) if message.data else False
 
-            self.room_user.is_ready = is_ready
-            await self.room_user_repository.update(self.room_user)
+            updated_room_user = await self.room_service.update_user_ready_status(
+                self.user_id, self.room_id, is_ready
+            )
 
-            ready_data = UserReadyData(user_id=self.user_id, is_ready=is_ready)
+            ready_data = UserReadyData(
+                user_id=self.user_id, is_ready=updated_room_user.is_ready
+            )
 
             await room_manager.broadcast(
                 WebSocketResponse(
@@ -198,11 +195,7 @@ class RoomWebSocketHandler:
 async def room_websocket(
     websocket: WebSocket,
     room_number: int,
-    room_repository: RoomRepository = Depends(get_room_repository),
-    room_user_repository: RoomUserRepository = Depends(get_room_user_repository),
-    user_repository: UserRepository = Depends(get_user_repository),
+    room_service: RoomService = Depends(get_room_service),
 ):
-    handler = RoomWebSocketHandler(
-        websocket, room_number, room_repository, room_user_repository, user_repository
-    )
+    handler = RoomWebSocketHandler(websocket, room_number, room_service)
     await handler.handle_connection()
