@@ -236,3 +236,49 @@ async def test_join_room_already_in_room(mock_room_service, user_id, room_id):
     assert exc_info.value.code == DomainErrorCode.USER_ALREADY_IN_ROOM
     assert str(user_id) in exc_info.value.message
     assert str(existing_room_id) in exc_info.value.details["current_room_id"]
+
+
+@pytest.mark.asyncio
+async def test_get_available_rooms(mock_room_service, user_id, room_id):
+    user1 = User(id=user_id, uid="123456789", nickname="HostUser")
+    user2 = User(id=uuid.uuid4(), uid="987654321", nickname="GuestUser")
+
+    room = Room(
+        id=room_id,
+        name="Test Room",
+        room_number=123,
+        max_users=4,
+        is_playing=False,
+        host_id=user_id,
+    )
+
+    room_user1 = RoomUser(room_id=room_id, user_id=user_id, is_ready=True)
+    room_user2 = RoomUser(room_id=room_id, user_id=user2.id, is_ready=False)
+
+    mock_room_service.room_repository.get_available_rooms_with_users.return_value = [
+        (room, [room_user1, room_user2])
+    ]
+
+    mock_room_service.user_repository.get_by_uuid.side_effect = lambda id: {
+        user_id: user1,
+        user2.id: user2,
+    }.get(id)
+
+    result = await mock_room_service.get_available_rooms()
+
+    assert len(result) == 1
+    assert result[0].name == "Test Room"
+    assert result[0].room_number == 123
+    assert result[0].max_users == 4
+    assert result[0].current_users == 2
+    assert result[0].host_nickname == "HostUser"
+
+    assert len(result[0].users) == 2
+
+    host_user = next((u for u in result[0].users if u.nickname == "HostUser"), None)
+    assert host_user is not None
+    assert host_user.is_ready is True
+
+    guest_user = next((u for u in result[0].users if u.nickname == "GuestUser"), None)
+    assert guest_user is not None
+    assert guest_user.is_ready is False

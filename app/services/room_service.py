@@ -9,6 +9,7 @@ from app.models.room_user import RoomUser
 from app.repositories.room_repository import RoomRepository
 from app.repositories.room_user_repository import RoomUserRepository
 from app.repositories.user_repository import UserRepository
+from app.schemas.room import AvailableRoomResponse, RoomUserResponse
 
 
 class RoomService:
@@ -121,3 +122,33 @@ class RoomService:
 
         created_room_user = await self.room_user_repository.create(room_user)
         return created_room_user
+
+    async def get_available_rooms(self) -> list[AvailableRoomResponse]:
+        rooms_with_users = await self.room_repository.get_available_rooms_with_users()
+
+        result = []
+        for room, room_users in rooms_with_users:
+            host_user = await self.user_repository.get_by_uuid(room.host_id)
+            host_nickname = host_user.nickname if host_user else "Unknown"
+
+            users = []
+            for room_user in room_users:
+                user = await self.user_repository.get_by_uuid(room_user.user_id)
+                if user:
+                    users.append(
+                        RoomUserResponse(
+                            nickname=user.nickname, is_ready=room_user.is_ready
+                        )
+                    )
+
+            room_data = AvailableRoomResponse(
+                name=room.name,
+                room_number=room.room_number,
+                max_users=room.max_users,
+                current_users=len(room_users),
+                host_nickname=host_nickname,
+                users=users,
+            )
+            result.append(room_data)
+
+        return result
