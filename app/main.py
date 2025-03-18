@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.api.internal.endpoints import internal_router
 from app.api.v1.endpoints import api_router
 from app.core.config import settings
 from app.core.error import DomainErrorCode, MCRDomainError
@@ -24,6 +25,9 @@ app.add_middleware(
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
 
+app.include_router(internal_router, prefix="/internal")
+
+
 @app.get("/health", status_code=status.HTTP_200_OK)
 async def health_check() -> BaseResponse:
     return BaseResponse(message="healthy")
@@ -43,6 +47,7 @@ async def mcr_domain_error_handler(
         DomainErrorCode.ROOM_NOT_FOUND: status.HTTP_404_NOT_FOUND,
         DomainErrorCode.ROOM_IS_FULL: status.HTTP_400_BAD_REQUEST,
         DomainErrorCode.ROOM_ALREADY_PLAYING: status.HTTP_400_BAD_REQUEST,
+        DomainErrorCode.ROOM_NOT_PLAYING: status.HTTP_400_BAD_REQUEST,
     }
     status_code = domain_error_code_mapper.get(
         exc.code,

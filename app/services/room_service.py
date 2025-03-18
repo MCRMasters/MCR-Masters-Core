@@ -121,3 +121,32 @@ class RoomService:
 
         created_room_user = await self.room_user_repository.create(room_user)
         return created_room_user
+
+    async def end_game(self, room_id: UUID) -> Room:
+        room = await self.room_repository.get_by_uuid(room_id)
+        if not room:
+            raise MCRDomainError(
+                code=DomainErrorCode.ROOM_NOT_FOUND,
+                message=f"Room with ID {room_id} not found",
+                details={"room_id": str(room_id)},
+            )
+
+        if not room.is_playing:
+            raise MCRDomainError(
+                code=DomainErrorCode.ROOM_NOT_PLAYING,
+                message=f"Room with ID {room_id} is not currently playing",
+                details={"room_id": str(room_id)},
+            )
+
+        room.is_playing = False
+        updated_room = await self.room_repository.update(room)
+
+        room_users = await self.room_user_repository.get_by_room(room_id)
+
+        for room_user in room_users:
+            if room_user.user_id != room.host_id:
+                room_user.is_ready = False
+                await self.room_user_repository.update(room_user)
+
+        await self.session.commit()
+        return updated_room
