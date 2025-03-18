@@ -7,7 +7,7 @@ from app.core.room_connection_manager import RoomConnectionManager
 
 
 @pytest.mark.asyncio
-async def test_room_connection_manager_connect():
+async def test_connect():
     manager = RoomConnectionManager()
     websocket = AsyncMock()
     room_id = uuid.uuid4()
@@ -21,7 +21,7 @@ async def test_room_connection_manager_connect():
 
 
 @pytest.mark.asyncio
-async def test_room_connection_manager_disconnect():
+async def test_disconnect():
     manager = RoomConnectionManager()
     websocket = AsyncMock()
     room_id = uuid.uuid4()
@@ -35,7 +35,7 @@ async def test_room_connection_manager_disconnect():
 
 
 @pytest.mark.asyncio
-async def test_room_connection_manager_broadcast():
+async def test_broadcast():
     manager = RoomConnectionManager()
     websocket1 = AsyncMock()
     websocket2 = AsyncMock()
@@ -54,7 +54,7 @@ async def test_room_connection_manager_broadcast():
 
 
 @pytest.mark.asyncio
-async def test_room_connection_manager_broadcast_with_exclude():
+async def test_broadcast_with_exclude():
     manager = RoomConnectionManager()
     websocket1 = AsyncMock()
     websocket2 = AsyncMock()
@@ -73,7 +73,7 @@ async def test_room_connection_manager_broadcast_with_exclude():
 
 
 @pytest.mark.asyncio
-async def test_room_connection_manager_personal_message():
+async def test_personal_message():
     manager = RoomConnectionManager()
     websocket1 = AsyncMock()
     websocket2 = AsyncMock()
@@ -91,7 +91,7 @@ async def test_room_connection_manager_personal_message():
     websocket2.send_json.assert_not_called()
 
 
-def test_room_connection_manager_get_room_users():
+def test_get_room_users():
     manager = RoomConnectionManager()
     room_id = uuid.uuid4()
     user_id1 = uuid.uuid4()
@@ -106,7 +106,7 @@ def test_room_connection_manager_get_room_users():
     assert user_id2 in users
 
 
-def test_room_connection_manager_is_user_in_room():
+def test_is_user_in_room():
     manager = RoomConnectionManager()
     room_id = uuid.uuid4()
     user_id = uuid.uuid4()
