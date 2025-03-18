@@ -1,3 +1,5 @@
+# tests/api/conftest.py에 추가할 코드
+
 import asyncio
 from unittest.mock import AsyncMock
 
@@ -23,6 +25,67 @@ from app.schemas.auth.base import TokenResponse
 from app.schemas.auth.google import GoogleTokenResponse, GoogleUserInfo
 
 
+@pytest_asyncio.fixture
+async def client(mocker):
+    """
+    테스트용 FastAPI 클라이언트를 생성합니다.
+    의존성을 모의(mock)로 대체하여 격리된 API 테스트 환경을 제공합니다.
+
+    Returns:
+        tuple: (client, mocks) - 클라이언트 인스턴스와 모킹된 객체들을 담은 딕셔너리
+    """
+    # 모의 세션 생성
+    mock_session = mocker.AsyncMock()
+
+    # 모의 리포지토리 생성
+    mock_user_repository = mocker.AsyncMock()
+    mock_room_repository = mocker.AsyncMock()
+    mock_room_user_repository = mocker.AsyncMock()
+
+    # 모의 서비스 생성
+    mock_user_service = mocker.AsyncMock()
+    mock_google_service = mocker.AsyncMock()
+    mock_room_service = mocker.AsyncMock()
+
+    # 의존성 오버라이드
+    app.dependency_overrides[get_session] = lambda: mock_session
+
+    app.dependency_overrides[get_user_repository] = lambda: mock_user_repository
+    app.dependency_overrides[get_room_repository] = lambda: mock_room_repository
+    app.dependency_overrides[get_room_user_repository] = (
+        lambda: mock_room_user_repository
+    )
+
+    app.dependency_overrides[get_user_service] = lambda: mock_user_service
+    app.dependency_overrides[get_google_oauth_service] = lambda: mock_google_service
+    app.dependency_overrides[get_room_service] = lambda: mock_room_service
+
+    # 모의 객체들을 사전에 담아 반환
+    mocks = {
+        "session": mock_session,
+        "repositories": {
+            "user": mock_user_repository,
+            "room": mock_room_repository,
+            "room_user": mock_room_user_repository,
+        },
+        "services": {
+            "user_service": mock_user_service,
+            "google_service": mock_google_service,
+            "room_service": mock_room_service,
+        },
+    }
+
+    # 클라이언트 생성 및 사용
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as client_instance:
+        yield client_instance, mocks
+
+    # 테스트 후 의존성 오버라이드 초기화
+    app.dependency_overrides.clear()
+
+
 @pytest.fixture
 def mock_user():
     """
@@ -35,6 +98,49 @@ def mock_user():
         nickname="",
         last_login=None,
     )
+
+
+@pytest.fixture
+def mock_auth(mocker, mock_user):
+    """
+    모의 사용자 인증 픽스처
+    토큰에서 사용자 ID를 추출하는 로직을 모의합니다.
+    """
+    mocker.patch(
+        "app.dependencies.auth.get_user_id_from_token",
+        return_value=mock_user.id,
+    )
+
+    return mock_user
+
+
+@pytest_asyncio.fixture
+async def login_client(client, mock_auth):
+    """
+    인증된 상태의 테스트 클라이언트를 생성합니다.
+    client 픽스처를 기반으로 현재 사용자 인증 의존성을 추가합니다.
+
+    Returns:
+        tuple: (client, mocks) - 인증된 클라이언트 인스턴스와 모킹된 객체들
+    """
+    # client 픽스처에서 클라이언트와 모킹 객체 가져오기
+    client_instance, mocks = client
+
+    # 현재 사용자 의존성 오버라이드 추가
+    app.dependency_overrides[get_current_user] = lambda: mock_auth
+
+    # 인증 헤더 추가를 위해 새 클라이언트 생성
+    auth_client = AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"Authorization": "Bearer test_token"},
+    )
+
+    try:
+        yield auth_client, mocks
+    finally:
+        await auth_client.aclose()
+        # client 픽스처에서 app.dependency_overrides.clear()가 이미 호출됨
 
 
 @pytest.fixture
@@ -60,95 +166,6 @@ def mock_google_responses():
             locale="en",
         ).model_dump(),
     }
-
-
-@pytest_asyncio.fixture
-async def client(
-    mock_session,
-    mock_user_repository,
-    mock_room_repository,
-    mock_room_user_repository,
-    mock_user_service,
-    mock_google_service,
-    mock_room_service,
-):
-    """
-    테스트용 FastAPI 클라이언트를 생성합니다.
-    의존성을 모의(mock)로 대체하여 격리된 API 테스트 환경을 제공합니다.
-    """
-    # 의존성 오버라이드
-    app.dependency_overrides[get_session] = lambda: mock_session
-
-    app.dependency_overrides[get_user_repository] = lambda: mock_user_repository
-    app.dependency_overrides[get_room_repository] = lambda: mock_room_repository
-    app.dependency_overrides[get_room_user_repository] = (
-        lambda: mock_room_user_repository
-    )
-
-    app.dependency_overrides[get_user_service] = lambda: mock_user_service
-    app.dependency_overrides[get_google_oauth_service] = lambda: mock_google_service
-    app.dependency_overrides[get_room_service] = lambda: mock_room_service
-
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test",
-    ) as client:
-        yield client
-
-    # 테스트 후 의존성 오버라이드 초기화
-    app.dependency_overrides.clear()
-
-
-@pytest_asyncio.fixture
-async def login_client(
-    mock_session,
-    mock_auth,
-    mock_user_repository,
-    mock_room_repository,
-    mock_room_user_repository,
-    mock_user_service,
-    mock_google_service,
-    mock_room_service,
-):
-    """
-    인증된 상태의 테스트 클라이언트를 생성합니다.
-    현재 사용자 인증 의존성을 모의(mock)로 대체합니다.
-    """
-    app.dependency_overrides[get_session] = lambda: mock_session
-    app.dependency_overrides[get_current_user] = lambda: mock_auth
-
-    app.dependency_overrides[get_user_repository] = lambda: mock_user_repository
-    app.dependency_overrides[get_room_repository] = lambda: mock_room_repository
-    app.dependency_overrides[get_room_user_repository] = (
-        lambda: mock_room_user_repository
-    )
-
-    app.dependency_overrides[get_user_service] = lambda: mock_user_service
-    app.dependency_overrides[get_google_oauth_service] = lambda: mock_google_service
-    app.dependency_overrides[get_room_service] = lambda: mock_room_service
-
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test",
-        headers={"Authorization": "Bearer test_token"},
-    ) as client:
-        yield client
-
-    app.dependency_overrides.clear()
-
-
-@pytest.fixture
-def mock_auth(mocker, mock_user):
-    """
-    모의 사용자 인증 픽스처
-    토큰에서 사용자 ID를 추출하는 로직을 모의합니다.
-    """
-    mocker.patch(
-        "app.dependencies.auth.get_user_id_from_token",
-        return_value=mock_user.id,
-    )
-
-    return mock_user
 
 
 @pytest_asyncio.fixture
