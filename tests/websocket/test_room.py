@@ -8,7 +8,7 @@ from app.schemas.ws import WebSocketMessage, WSActionType
 
 
 @pytest.mark.asyncio
-async def test_room_ws_connection_success(room_ws_client, mocker):
+async def test_connection_success(room_ws_client, mocker):
     """방 WebSocket 연결 성공 테스트"""
     # 서비스 모킹
     mock_room_service = mocker.AsyncMock()
@@ -56,7 +56,7 @@ async def test_room_ws_connection_success(room_ws_client, mocker):
 
 
 @pytest.mark.asyncio
-async def test_room_ws_ping_pong(room_ws_client, mocker):
+async def test_ping_pong(room_ws_client, mocker):
     """방 WebSocket ping-pong 테스트"""
     # 서비스 모킹
     mock_room_service = mocker.AsyncMock()
@@ -88,7 +88,7 @@ async def test_room_ws_ping_pong(room_ws_client, mocker):
 
 
 @pytest.mark.asyncio
-async def test_room_ws_ready_status(room_ws_client, mocker):
+async def test_ready_status(room_ws_client, mocker):
     """방 WebSocket 준비 상태 변경 테스트"""
     # 서비스 모킹
     mock_room_service = mocker.AsyncMock()
@@ -132,7 +132,7 @@ async def test_room_ws_ready_status(room_ws_client, mocker):
 
 
 @pytest.mark.asyncio
-async def test_room_ws_connection_invalid_token(room_ws_client, mocker):
+async def test_connection_invalid_token(room_ws_client, mocker):
     """잘못된 토큰으로 방 WebSocket 연결 시도 테스트"""
     # 헤더 모킹 - 토큰 없음
     room_ws_client.headers.get.return_value = None
@@ -156,7 +156,7 @@ async def test_room_ws_connection_invalid_token(room_ws_client, mocker):
 
 
 @pytest.mark.asyncio
-async def test_room_ws_connection_room_not_found(room_ws_client, mocker):
+async def test_connection_room_not_found(room_ws_client, mocker):
     """존재하지 않는 방에 WebSocket 연결 시도 테스트"""
     # 서비스 모킹
     mock_room_service = mocker.AsyncMock()
