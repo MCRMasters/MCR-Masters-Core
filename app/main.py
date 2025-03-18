@@ -13,7 +13,6 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# CORS 설정
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -41,14 +40,16 @@ async def mcr_domain_error_handler(
         DomainErrorCode.INVALID_UID: status.HTTP_422_UNPROCESSABLE_ENTITY,
         DomainErrorCode.INVALID_NICKNAME: status.HTTP_422_UNPROCESSABLE_ENTITY,
         DomainErrorCode.USER_ALREADY_IN_ROOM: status.HTTP_400_BAD_REQUEST,
+        DomainErrorCode.ROOM_NOT_FOUND: status.HTTP_404_NOT_FOUND,
+        DomainErrorCode.ROOM_IS_FULL: status.HTTP_400_BAD_REQUEST,
+        DomainErrorCode.ROOM_ALREADY_PLAYING: status.HTTP_400_BAD_REQUEST,
     }
-    status_code = domain_error_code_mapper[exc.code]
+    status_code = domain_error_code_mapper.get(
+        exc.code,
+        status.HTTP_500_INTERNAL_SERVER_ERROR,
+    )
 
     return JSONResponse(
         status_code=status_code,
-        content={
-            "detail": exc.message,
-            "code": exc.code,
-            "error_details": exc.details,
-        },
+        content={"detail": exc.message, "code": exc.code, "error_details": exc.details},
     )

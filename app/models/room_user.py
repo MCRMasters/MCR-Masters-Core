@@ -3,8 +3,10 @@ from uuid import UUID, uuid4
 from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, SQLModel
 
+from app.models.time_stamp_mixin import TimeStampMixin
 
-class RoomUser(SQLModel, table=True, tablename="room_user"):  # type: ignore[call-arg]
+
+class RoomUser(TimeStampMixin, SQLModel, table=True):  # type: ignore[call-arg]
     id: UUID = Field(
         default_factory=uuid4,
         primary_key=True,
