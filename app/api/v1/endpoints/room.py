@@ -6,7 +6,7 @@ from app.dependencies.services import get_room_service
 from app.models.room import Room
 from app.models.user import User
 from app.schemas.common import BaseResponse
-from app.schemas.room import RoomResponse
+from app.schemas.room import AvailableRoomResponse, RoomResponse
 from app.services.room_service import RoomService
 
 router = APIRouter()
@@ -41,3 +41,15 @@ async def join_room(
 ):
     await room_service.join_room(current_user.id, room.id)
     return BaseResponse(message="Room joined successfully")
+
+
+@router.get(
+    "",
+    response_model=list[AvailableRoomResponse],
+    status_code=status.HTTP_200_OK,
+)
+async def get_available_rooms(
+    current_user: User = Depends(get_current_user),  # noqa : ARG001
+    room_service: RoomService = Depends(get_room_service),
+):
+    return await room_service.get_available_rooms()
