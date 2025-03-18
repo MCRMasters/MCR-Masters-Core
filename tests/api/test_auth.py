@@ -1,3 +1,5 @@
+from unittest.mock import Mock
+
 import pytest
 from fastapi import status
 
@@ -10,7 +12,10 @@ async def test_get_google_login_url(client):
 
     # Google 인증 URL 모킹
     auth_url = "https://accounts.google.com/o/oauth2/v2/auth?client_id=secret&response_type=code&redirect_uri=http://localhost:8000/api/v1/auth/login/google/callback&scope=openid+email+profile&access_type=offline&prompt=consent"
-    mocks["services"]["google_service"].get_authorization_url.return_value = auth_url
+
+    mocks["services"]["google_service"].get_authorization_url = Mock(
+        return_value=auth_url
+    )
 
     # API 호출
     response = await client_instance.get("/api/v1/auth/login/google")
