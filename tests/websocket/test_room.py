@@ -49,7 +49,7 @@ async def test_room_ws_connection_success(room_ws_client, mocker):
         result = await handler.handle_connection()
 
     # 검증
-    assert result is True
+    assert result
     mock_room_service.validate_room_user_connection.assert_called_once()
     mock_connect.assert_called_once()
     mock_broadcast.assert_called_once()
@@ -151,7 +151,7 @@ async def test_room_ws_connection_invalid_token(room_ws_client, mocker):
     result = await handler.handle_connection()
 
     # 검증
-    assert result is False
+    assert not result
     room_ws_client.close.assert_called_once()
 
 
@@ -179,5 +179,5 @@ async def test_room_ws_connection_room_not_found(room_ws_client, mocker):
     result = await handler.handle_connection()
 
     # 검증
-    assert result is False
+    assert not result
     room_ws_client.close.assert_called_once()
