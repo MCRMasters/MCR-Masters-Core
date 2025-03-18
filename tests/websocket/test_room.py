@@ -127,7 +127,7 @@ async def test_room_ws_ready_status(room_ws_client, mocker):
     args, _ = mock_broadcast.call_args
     assert args[0]["action"] == WSActionType.USER_READY_CHANGED
     assert args[0]["status"] == "success"
-    assert args[0]["data"]["user_id"] == str(handler.user_id)
+    assert args[0]["data"]["user_id"] == handler.user_id
     assert args[0]["data"]["is_ready"] is True
 
 
