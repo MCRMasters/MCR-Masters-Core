@@ -38,7 +38,7 @@ async def test_get_or_create_user_new(mock_user_service, mocker):
     user_info = {"email": "new@example.com"}
 
     mocker.patch(
-        "app.repositories.user_repository.UserRepository.filter_one",  # 변경된 부분
+        "app.repositories.user_repository.UserRepository.filter_one",
         return_value=None,
     )
 
@@ -72,7 +72,7 @@ async def test_get_or_create_user_existing(mock_user_service, mocker):
     )
 
     mocker.patch(
-        "app.repositories.user_repository.UserRepository.filter_one",  # 변경된 부분
+        "app.repositories.user_repository.UserRepository.filter_one",
         return_value=existing_user,
     )
 
@@ -94,7 +94,7 @@ async def test_get_or_create_user_existing_empty_nickname(mock_user_service, moc
     )
 
     mocker.patch(
-        "app.repositories.user_repository.UserRepository.filter_one",  # 변경된 부분
+        "app.repositories.user_repository.UserRepository.filter_one",
         return_value=existing_user,
     )
 

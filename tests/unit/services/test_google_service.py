@@ -66,7 +66,7 @@ async def test_get_or_create_user_existing(mock_user_service, mocker):
     )
 
     mocker.patch(
-        "app.repositories.user_repository.UserRepository.filter_one",  # 변경된 부분
+        "app.repositories.user_repository.UserRepository.filter_one",
         return_value=existing_user,
     )
 
