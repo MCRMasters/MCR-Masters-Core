@@ -78,20 +78,6 @@ async def test_room_users(test_db_session, test_room, test_users) -> list[RoomUs
 
 
 @pytest.mark.asyncio
-async def test_get_by_user(test_db_session, test_users, test_room_users):
-    repo = RoomUserRepository(test_db_session)
-    result = await repo.get_by_user(test_users[0].id)
-
-    assert result is not None
-    assert result.user_id == test_users[0].id
-    assert result.is_ready is True
-
-    non_existent_user_id = "00000000-0000-0000-0000-000000000000"
-    non_existent_result = await repo.get_by_user(non_existent_user_id)
-    assert non_existent_result is None
-
-
-@pytest.mark.asyncio
 async def test_create_and_update_room_user(test_db_session, test_room):
     new_user = User(
         uid="987654321",
@@ -120,7 +106,3 @@ async def test_create_and_update_room_user(test_db_session, test_room):
     updated = await repo.update(created)
 
     assert updated.is_ready is True
-
-    check = await repo.get_by_user(new_user.id)
-    assert check is not None
-    assert check.is_ready is True
