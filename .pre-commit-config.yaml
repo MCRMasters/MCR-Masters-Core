@@ -21,14 +21,14 @@ repos:
     -   id: ruff-format
         args: [--config=pyproject.toml]
 
-#-   repo: local
-#    hooks:
-#    -   id: pytest
-#        name: Run pytest
-#        entry: poetry run pytest
-#        language: system
-#        types: [python]
-#        pass_filenames: false
+-   repo: local
+    hooks:
+    -   id: pytest
+        name: Run pytest
+        entry: poetry run pytest
+        language: system
+        types: [python]
+        pass_filenames: false
 
 default_language_version:
   python: python3.12
