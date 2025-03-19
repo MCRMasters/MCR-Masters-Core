@@ -1,6 +1,7 @@
 import random
 from uuid import UUID
 
+import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.error import DomainErrorCode, MCRDomainError
@@ -232,4 +233,54 @@ class RoomService:
                 await self.room_user_repository.update(room_user)
 
         await self.session.commit()
+        return updated_room
+
+    async def start_game(self, room_id: UUID) -> Room:
+        room = await self.room_repository.get_by_uuid(room_id)
+        if not room:
+            raise MCRDomainError(
+                code=DomainErrorCode.ROOM_NOT_FOUND,
+                message=f"Room with ID {room_id} not found",
+                details={"room_id": str(room_id)},
+            )
+
+        if room.is_playing:
+            raise MCRDomainError(
+                code=DomainErrorCode.ROOM_ALREADY_PLAYING,
+                message=f"Room with ID {room_id} is already playing",
+                details={"room_id": str(room_id)},
+            )
+
+        room_users = await self.room_user_repository.get_by_room(room_id)
+        if len(room_users) < 4:
+            raise MCRDomainError(
+                code=DomainErrorCode.NOT_ENOUGH_PLAYERS,
+                message=f"Room with ID {room_id} does not have enough players",
+                details={"room_id": str(room_id), "current_players": len(room_users)},
+            )
+
+        not_ready_users = [ru for ru in room_users if not ru.is_ready]
+        if not_ready_users:
+            raise MCRDomainError(
+                code=DomainErrorCode.PLAYERS_NOT_READY,
+                message=f"Not all players are ready in room {room_id}",
+                details={
+                    "room_id": str(room_id),
+                    "not_ready_count": len(not_ready_users),
+                },
+            )
+
+        room.is_playing = True
+        updated_room = await self.room_repository.update(room)
+        await self.session.commit()
+
+        async with httpx.AsyncClient() as client:
+            try:
+                await client.post(
+                    f"http://game-server/api/games/{room.room_number}/start",
+                    timeout=5.0,
+                )
+            except Exception as e:
+                print(f"Failed to call game server API: {e}")
+
         return updated_room

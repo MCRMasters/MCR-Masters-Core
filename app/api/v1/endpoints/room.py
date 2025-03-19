@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, status
 
+from app.core.error import DomainErrorCode, MCRDomainError
 from app.dependencies.auth import get_current_user
 from app.dependencies.repositories import get_room_by_number
 from app.dependencies.services import get_room_service
@@ -53,3 +54,28 @@ async def get_available_rooms(
     room_service: RoomService = Depends(get_room_service),
 ):
     return await room_service.get_available_rooms()
+
+
+@router.post(
+    "/{room_number}/game-start",
+    response_model=BaseResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def start_game(
+    room: Room = Depends(get_room_by_number),
+    current_user: User = Depends(get_current_user),
+    room_service: RoomService = Depends(get_room_service),
+):
+    if room.host_id != current_user.id:
+        raise MCRDomainError(
+            code=DomainErrorCode.NOT_HOST,
+            message="Only the host can start the game",
+            details={
+                "user_id": str(current_user.id),
+                "host_id": str(room.host_id),
+                "room_id": str(room.id),
+            },
+        )
+
+    await room_service.start_game(room.id)
+    return BaseResponse(message="Game started successfully")

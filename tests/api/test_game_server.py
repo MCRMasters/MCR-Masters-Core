@@ -8,13 +8,10 @@ from app.core.error import DomainErrorCode, MCRDomainError
 from app.models.room import Room
 
 
-# test_game_server.py에서 사용할 mock_session 픽스처 재정의
 @pytest.fixture
 def mock_session(mocker):
-    """게임 서버 테스트를 위한 mock_session 픽스처"""
     session = AsyncMock()
 
-    # 기본적으로 execute 메서드는 AsyncMock으로 설정
     session.execute = AsyncMock()
 
     return session

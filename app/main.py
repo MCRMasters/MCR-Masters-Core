@@ -48,6 +48,9 @@ async def mcr_domain_error_handler(
         DomainErrorCode.ROOM_IS_FULL: status.HTTP_400_BAD_REQUEST,
         DomainErrorCode.ROOM_ALREADY_PLAYING: status.HTTP_400_BAD_REQUEST,
         DomainErrorCode.ROOM_NOT_PLAYING: status.HTTP_400_BAD_REQUEST,
+        DomainErrorCode.NOT_ENOUGH_PLAYERS: status.HTTP_400_BAD_REQUEST,
+        DomainErrorCode.PLAYERS_NOT_READY: status.HTTP_400_BAD_REQUEST,
+        DomainErrorCode.NOT_HOST: status.HTTP_403_FORBIDDEN,
     }
     status_code = domain_error_code_mapper.get(
         exc.code,
