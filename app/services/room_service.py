@@ -4,7 +4,9 @@ from uuid import UUID
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.error import DomainErrorCode, MCRDomainError
+from app.core.room_connection_manager import room_manager
 from app.models.room import Room
 from app.models.room_user import RoomUser
 from app.models.user import User
@@ -270,17 +272,25 @@ class RoomService:
                 },
             )
 
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{settings.GAME_SERVER_URL}/api/v1/games/start",
+                json={
+                    "room_number": room.room_number,
+                    "players": [
+                        {"id": str(ru.user_id), "seat": idx}
+                        for idx, ru in enumerate(room_users)
+                    ],
+                },
+                timeout=5.0,
+            )
+            response.raise_for_status()
+            game_data = response.json()
+            game_websocket_url = game_data.get("websocket_url")
+
         room.is_playing = True
         updated_room = await self.room_repository.update(room)
         await self.session.commit()
 
-        async with httpx.AsyncClient() as client:
-            try:
-                await client.post(
-                    f"http://game-server/api/games/{room.room_number}/start",
-                    timeout=5.0,
-                )
-            except Exception as e:
-                print(f"Failed to call game server API: {e}")
-
+        await room_manager.broadcast_game_started(room_id, game_websocket_url)
         return updated_room
