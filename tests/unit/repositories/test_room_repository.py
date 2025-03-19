@@ -109,7 +109,6 @@ async def test_create_room(test_db_session, test_host):
     assert created_room.name == room.name
     assert created_room.room_number is not None
 
-    # 생성된 방을 room_number로 조회
     result = await repo.filter_one_or_raise(room_number=created_room.room_number)
     assert result is not None
     assert result.id == created_room.id

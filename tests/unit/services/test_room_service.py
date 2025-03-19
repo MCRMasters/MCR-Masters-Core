@@ -25,7 +25,6 @@ async def mock_room_service(mocker):
         user_repository=user_repository,
     )
 
-    # 방 이름 생성 메서드 고정
     mocker.patch.object(
         service,
         "_generate_random_room_name",
