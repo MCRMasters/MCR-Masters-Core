@@ -25,7 +25,8 @@ import pytest
     ],
 )
 async def test_ws_google_login(mock_websocket_client, message, expected_response):
-    await mock_websocket_client.send_json(message)
+    await mock_websocket_client.send_json_and_get_response(message)
+
     response = await mock_websocket_client.receive_json()
 
     for key, value in expected_response.items():
