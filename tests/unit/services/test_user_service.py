@@ -167,10 +167,8 @@ async def test_get_user_by_id(mock_user_service, user_id, mocker):
         return_value=user,
     )
 
-    # 테스트 대상 함수 호출
     result = await mock_user_service.get_user_by_id(user_id)
 
-    # 검증
     assert result is not None
     assert result.id == user_id
     assert result.uid == "123456789"
