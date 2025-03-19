@@ -272,21 +272,7 @@ class RoomService:
                 },
             )
 
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{settings.GAME_SERVER_URL}/api/v1/games/start",
-                json={
-                    "room_number": room.room_number,
-                    "players": [
-                        {"id": str(ru.user_id), "seat": idx}
-                        for idx, ru in enumerate(room_users)
-                    ],
-                },
-                timeout=5.0,
-            )
-            response.raise_for_status()
-            game_data = response.json()
-            game_websocket_url = game_data.get("websocket_url")
+        game_websocket_url = await self._call_game_server_api()
 
         room.is_playing = True
         updated_room = await self.room_repository.update(room)
@@ -294,3 +280,14 @@ class RoomService:
 
         await room_manager.broadcast_game_started(room_id, game_websocket_url)
         return updated_room
+
+    @staticmethod
+    async def _call_game_server_api() -> str:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{settings.GAME_SERVER_URL}/api/v1/games/start",
+                timeout=5.0,
+            )
+            response.raise_for_status()
+            game_data: dict[str, str] = response.json()
+            return game_data.get("websocket_url", "")

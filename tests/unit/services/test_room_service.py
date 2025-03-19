@@ -356,7 +356,6 @@ async def test_end_game_room_not_playing(mock_room_service, user_id, room_id):
     assert str(room_id) in exc_info.value.message
 
 
-@pytest.mark.skip
 @pytest.mark.asyncio
 async def test_start_game_success(mock_room_service, user_id, room_id, mocker):
     room = Room(
@@ -388,20 +387,25 @@ async def test_start_game_success(mock_room_service, user_id, room_id, mocker):
     )
     mock_room_service.room_repository.update.return_value = updated_room
 
-    mock_client = mocker.AsyncMock()
-    mock_client.__aenter__.return_value = mock_client
-    mock_client.post.return_value = mocker.AsyncMock()
-    mocker.patch("httpx.AsyncClient", return_value=mock_client)
+    game_websocket_url = "ws://game-server/games/12345"
+
+    mocker.patch.object(
+        RoomService, "_call_game_server_api", return_value=game_websocket_url
+    )
+
+    mock_broadcast = mocker.patch(
+        "app.core.room_connection_manager.room_manager.broadcast_game_started"
+    )
 
     result = await mock_room_service.start_game(room_id)
 
     assert result.id == room_id
     assert result.is_playing is True
     mock_room_service.session.commit.assert_awaited_once()
-    mock_client.post.assert_awaited_once_with(
-        f"http://game-server/api/games/{room.room_number}/start",
-        timeout=5.0,
-    )
+
+    RoomService._call_game_server_api.assert_awaited_once()
+
+    mock_broadcast.assert_awaited_once_with(room_id, game_websocket_url)
 
 
 @pytest.mark.asyncio
