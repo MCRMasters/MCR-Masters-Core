@@ -4,7 +4,7 @@ from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.sql.expression import BinaryExpression
+from sqlalchemy.sql.expression import BinaryExpression, Select
 from sqlmodel import SQLModel
 
 from app.core.error import DomainErrorCode, MCRDomainError
@@ -47,13 +47,7 @@ class BaseRepository(Generic[T], ABC):
             await self.session.delete(entity)
             await self.session.flush()
 
-    async def filter(
-        self,
-        *filters: BinaryExpression,
-        offset: int | None = None,
-        limit: int | None = None,
-        **kwargs: Any,
-    ) -> list[T]:
+    def _build_query(self, *filters: BinaryExpression, **kwargs: Any) -> Select:
         query = select(self.model_class)
 
         for filter_condition in filters:
@@ -62,6 +56,17 @@ class BaseRepository(Generic[T], ABC):
         for key, value in kwargs.items():
             if hasattr(self.model_class, key):
                 query = query.where(getattr(self.model_class, key) == value)
+
+        return query
+
+    async def filter(
+        self,
+        *filters: BinaryExpression,
+        offset: int | None = None,
+        limit: int | None = None,
+        **kwargs: Any,
+    ) -> list[T]:
+        query = self._build_query(*filters, **kwargs)
 
         if offset is not None:
             query = query.offset(offset)
@@ -72,19 +77,23 @@ class BaseRepository(Generic[T], ABC):
         return list(result.scalars().all())
 
     async def filter_one(self, *filters: BinaryExpression, **kwargs: Any) -> T | None:
-        results = await self.filter(*filters, limit=1, **kwargs)
-        return results[0] if results else None
+        query = self._build_query(*filters, **kwargs)
+        query = query.limit(1)
+
+        result = await self.session.execute(query)
+        return cast(T | None, result.scalar_one_or_none())
 
     async def filter_one_or_raise(self, *filters: BinaryExpression, **kwargs: Any) -> T:
-        result = await self.filter_one(*filters, limit=1, **kwargs)
+        result = await self.filter_one(*filters, **kwargs)
         if not result:
+            filter_details = {key: str(value) for key, value in kwargs.items()}
             raise MCRDomainError(
                 code=self.not_found_error_code,
                 message=f"{self.model_class.__name__} not found",
                 details={
                     "model": self.model_class.__name__,
                     "filters": str(filters) if filters else None,
-                    "conditions": kwargs,
+                    "conditions": filter_details,
                 },
             )
         return result

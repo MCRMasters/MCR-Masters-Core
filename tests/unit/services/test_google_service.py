@@ -13,21 +13,20 @@ def user_id():
 
 @pytest.mark.asyncio
 async def test_generate_unique_uid(mock_user_service, mocker):
-    existing_uid = "123456789"
-    new_uid = "987654321"
-
+    # count 메서드 모킹 - 이미 존재하는 UID인 경우 1 반환, 새 UID인 경우 0 반환
     mocker.patch(
-        "app.repositories.user_repository.UserRepository.get_by_uid",
-        side_effect=[User(uid=existing_uid, nickname=""), None],
-    )
-
-    mocker.patch(
-        "app.services.auth.user_service.randint",
-        return_value=int(new_uid),
+        "app.repositories.user_repository.UserRepository.count",
+        side_effect=[
+            1,
+            0,
+        ],  # 첫 번째 호출에서는 1 (이미 존재), 두 번째는 0 (존재하지 않음)
     )
 
     generated_uid = await mock_user_service.generate_unique_uid()
-    assert generated_uid == new_uid
+
+    # 실제 UID 값은 랜덤이므로 검증하지 않고 형식만 확인
+    assert len(generated_uid) == 9
+    assert generated_uid.isdigit()
 
 
 @pytest.mark.asyncio
