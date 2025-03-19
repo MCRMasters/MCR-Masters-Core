@@ -17,9 +17,3 @@ class UserRepository(BaseRepository[User]):
             select(User).where(User.email == email),
         )
         return cast(User | None, result.scalar_one_or_none())
-
-    async def get_by_uid(self, uid: str) -> User | None:
-        result = await self.session.execute(
-            select(User).where(User.uid == uid),
-        )
-        return cast(User | None, result.scalar_one_or_none())
