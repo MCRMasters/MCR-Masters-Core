@@ -21,7 +21,6 @@ from app.services.room_service import RoomService
 
 @pytest_asyncio.fixture
 async def test_engine():
-    """테스트용 비동기 데이터베이스 엔진을 생성합니다."""
     test_settings = get_test_settings()
     engine = create_async_engine(
         test_settings.database_uri,
@@ -46,10 +45,6 @@ async def test_engine():
 
 @pytest_asyncio.fixture
 async def test_db_session(test_engine) -> AsyncSession:
-    """
-    데이터베이스 세션을 생성하고 각 테스트 종료 후 롤백합니다.
-    트랜잭션 격리를 통해 테스트 간 데이터 간섭을 방지합니다.
-    """
     async_session = async_sessionmaker(
         bind=test_engine,
         class_=AsyncSession,
@@ -67,7 +62,6 @@ async def test_db_session(test_engine) -> AsyncSession:
 
 @pytest_asyncio.fixture
 async def test_user(test_db_session) -> User:
-    """기본 테스트 사용자를 생성합니다."""
     user = User(
         uid="123456789",
         nickname="TestUser",
@@ -83,7 +77,6 @@ async def test_user(test_db_session) -> User:
 
 @pytest_asyncio.fixture
 async def test_host(test_db_session) -> User:
-    """호스트 역할의 테스트 사용자를 생성합니다."""
     host = User(
         uid="987654321",
         nickname="HostUser",
@@ -99,7 +92,6 @@ async def test_host(test_db_session) -> User:
 
 @pytest_asyncio.fixture
 async def test_room(test_db_session, test_host) -> Room:
-    """기본 테스트 방을 생성합니다."""
     room = Room(
         name="테스트 방",
         room_number=123,
@@ -117,7 +109,6 @@ async def test_room(test_db_session, test_host) -> Room:
 
 @pytest_asyncio.fixture
 async def test_playing_room(test_db_session, test_host) -> Room:
-    """게임 중인 테스트 방을 생성합니다."""
     room = Room(
         name="진행 중인 방",
         room_number=456,
@@ -135,7 +126,6 @@ async def test_playing_room(test_db_session, test_host) -> Room:
 
 @pytest_asyncio.fixture
 async def test_room_users(test_db_session, test_room, test_host) -> list[RoomUser]:
-    """테스트 방에 대한 다중 사용자 참여를 생성합니다."""
     users = [
         User(
             uid=f"100000{i}",
@@ -155,7 +145,7 @@ async def test_room_users(test_db_session, test_room, test_host) -> list[RoomUse
         RoomUser(
             room_id=test_room.id,
             user_id=user.id,
-            is_ready=(i == 0),  # 첫 번째 사용자만 준비 상태
+            is_ready=(i == 0),
         )
         for i, user in enumerate([*users, test_host])
     ]
@@ -171,22 +161,16 @@ async def test_room_users(test_db_session, test_room, test_host) -> list[RoomUse
 
 @pytest.fixture
 def user_id():
-    """임의의 사용자 ID를 생성합니다."""
     return uuid.uuid4()
 
 
 @pytest.fixture
 def room_id():
-    """임의의 방 ID를 생성합니다."""
     return uuid.uuid4()
 
 
 @pytest.fixture
 def mock_session(mocker, test_user):
-    """
-    모의 데이터베이스 세션을 생성합니다.
-    단위 테스트에서 비동기 데이터베이스 작업을 모킹합니다.
-    """
     session = mocker.AsyncMock()
     mock_result = mocker.Mock()
     mock_result.scalar_one_or_none.return_value = test_user
@@ -196,50 +180,30 @@ def mock_session(mocker, test_user):
 
 @pytest.fixture
 def mock_user_repository(mock_session, test_user):
-    """
-    모의 사용자 레포지토리를 생성합니다.
-    단위 테스트에서 사용자 레포지토리 동작을 모킹합니다.
-    """
     repository = UserRepository(mock_session)
     return repository
 
 
 @pytest.fixture
 def mock_room_repository(mock_session):
-    """
-    모의 방 레포지토리를 생성합니다.
-    단위 테스트에서 방 레포지토리 동작을 모킹합니다.
-    """
     repository = RoomRepository(mock_session)
     return repository
 
 
 @pytest.fixture
 def mock_room_user_repository(mock_session):
-    """
-    모의 방-사용자 레포지토리를 생성합니다.
-    단위 테스트에서 방-사용자 레포지토리 동작을 모킹합니다.
-    """
     repository = RoomUserRepository(mock_session)
     return repository
 
 
 @pytest.fixture
 def mock_user_service(mock_session, mock_user_repository):
-    """
-    모의 사용자 서비스를 생성합니다.
-    단위 테스트에서 사용자 서비스 동작을 모킹합니다.
-    """
     service = UserService(mock_session, mock_user_repository)
     return service
 
 
 @pytest.fixture
 def mock_google_service(mock_session, mock_user_service):
-    """
-    모의 Google OAuth 서비스를 생성합니다.
-    단위 테스트에서 Google OAuth 서비스 동작을 모킹합니다.
-    """
     service = GoogleOAuthService(mock_session, mock_user_service)
     return service
 
@@ -251,10 +215,6 @@ def mock_room_service(
     mock_room_user_repository,
     mock_user_repository,
 ):
-    """
-    모의 방 서비스를 생성합니다.
-    단위 테스트에서 방 서비스 동작을 모킹합니다.
-    """
     service = RoomService(
         session=mock_session,
         room_repository=mock_room_repository,

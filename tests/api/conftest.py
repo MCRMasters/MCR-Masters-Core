@@ -1,5 +1,3 @@
-# tests/api/conftest.py에 추가할 코드
-
 import asyncio
 from unittest.mock import AsyncMock
 
@@ -27,27 +25,16 @@ from app.schemas.auth.google import GoogleTokenResponse, GoogleUserInfo
 
 @pytest_asyncio.fixture
 async def client(mocker):
-    """
-    테스트용 FastAPI 클라이언트를 생성합니다.
-    의존성을 모의(mock)로 대체하여 격리된 API 테스트 환경을 제공합니다.
-
-    Returns:
-        tuple: (client, mocks) - 클라이언트 인스턴스와 모킹된 객체들을 담은 딕셔너리
-    """
-    # 모의 세션 생성
     mock_session = mocker.AsyncMock()
 
-    # 모의 리포지토리 생성
     mock_user_repository = mocker.AsyncMock()
     mock_room_repository = mocker.AsyncMock()
     mock_room_user_repository = mocker.AsyncMock()
 
-    # 모의 서비스 생성
     mock_user_service = mocker.AsyncMock()
     mock_google_service = mocker.AsyncMock()
     mock_room_service = mocker.AsyncMock()
 
-    # 의존성 오버라이드
     app.dependency_overrides[get_session] = lambda: mock_session
 
     app.dependency_overrides[get_user_repository] = lambda: mock_user_repository
@@ -60,7 +47,6 @@ async def client(mocker):
     app.dependency_overrides[get_google_oauth_service] = lambda: mock_google_service
     app.dependency_overrides[get_room_service] = lambda: mock_room_service
 
-    # 모의 객체들을 사전에 담아 반환
     mocks = {
         "session": mock_session,
         "repositories": {
@@ -75,23 +61,17 @@ async def client(mocker):
         },
     }
 
-    # 클라이언트 생성 및 사용
     async with AsyncClient(
         transport=ASGITransport(app=app),
         base_url="http://test",
     ) as client_instance:
         yield client_instance, mocks
 
-    # 테스트 후 의존성 오버라이드 초기화
     app.dependency_overrides.clear()
 
 
 @pytest.fixture
 def mock_user():
-    """
-    기본 모의 사용자 객체를 생성합니다.
-    API 테스트에서 인증된 사용자를 시뮬레이션합니다.
-    """
     return User(
         email="test@example.com",
         uid="123456789",
@@ -102,10 +82,6 @@ def mock_user():
 
 @pytest.fixture
 def mock_auth(mocker, mock_user):
-    """
-    모의 사용자 인증 픽스처
-    토큰에서 사용자 ID를 추출하는 로직을 모의합니다.
-    """
     mocker.patch(
         "app.dependencies.auth.get_user_id_from_token",
         return_value=mock_user.id,
@@ -116,20 +92,10 @@ def mock_auth(mocker, mock_user):
 
 @pytest_asyncio.fixture
 async def login_client(client, mock_auth):
-    """
-    인증된 상태의 테스트 클라이언트를 생성합니다.
-    client 픽스처를 기반으로 현재 사용자 인증 의존성을 추가합니다.
-
-    Returns:
-        tuple: (client, mocks) - 인증된 클라이언트 인스턴스와 모킹된 객체들
-    """
-    # client 픽스처에서 클라이언트와 모킹 객체 가져오기
     client_instance, mocks = client
 
-    # 현재 사용자 의존성 오버라이드 추가
     app.dependency_overrides[get_current_user] = lambda: mock_auth
 
-    # 인증 헤더 추가를 위해 새 클라이언트 생성
     auth_client = AsyncClient(
         transport=ASGITransport(app=app),
         base_url="http://test",
@@ -140,15 +106,10 @@ async def login_client(client, mock_auth):
         yield auth_client, mocks
     finally:
         await auth_client.aclose()
-        # client 픽스처에서 app.dependency_overrides.clear()가 이미 호출됨
 
 
 @pytest.fixture
 def mock_google_responses():
-    """
-    Google OAuth 응답을 모의로 생성합니다.
-    OAuth 흐름을 테스트하는 데 사용됩니다.
-    """
     return {
         "token_response": GoogleTokenResponse(
             access_token="mock_access_token",
@@ -170,10 +131,6 @@ def mock_google_responses():
 
 @pytest_asyncio.fixture
 async def mock_websocket_client(mocker):
-    """
-    WebSocket 테스트를 위한 모의 클라이언트를 생성합니다.
-    비동기 WebSocket 상호작용을 시뮬레이션합니다.
-    """
     mock_websocket = AsyncMock()
 
     send_queue = asyncio.Queue()

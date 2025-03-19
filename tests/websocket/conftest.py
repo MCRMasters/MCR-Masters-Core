@@ -15,7 +15,6 @@ from app.schemas.auth.base import TokenResponse
 
 
 async def _create_google_oauth_response(message):
-    """Google OAuth 메시지에 대한 응답을 생성합니다."""
     if message.get("action") == "get_oauth_url":
         return {"action": "oauth_url", "auth_url": "https://mock.auth.url"}
     elif message.get("action") == "auth":
@@ -41,7 +40,6 @@ async def _create_google_oauth_response(message):
 
 
 def _setup_websocket_queues(mock_websocket):
-    """WebSocket 메시지 큐를 설정합니다."""
     send_queue = asyncio.Queue()
     receive_queue = asyncio.Queue()
 
@@ -61,25 +59,17 @@ def _setup_websocket_queues(mock_websocket):
 
 @pytest_asyncio.fixture
 async def mock_websocket_client(mocker):
-    """
-    WebSocket 테스트를 위한 모의 클라이언트를 생성합니다.
-    비동기 WebSocket 상호작용을 시뮬레이션합니다.
-    """
     mock_websocket = mocker.AsyncMock(spec=WebSocket)
 
-    # WebSocket 메시지 큐 설정
     send_queue, receive_queue = _setup_websocket_queues(mock_websocket)
 
-    # 메시지 시뮬레이션 메서드 추가
     async def simulate_message(message):
         await receive_queue.put(message)
 
     mock_websocket.simulate_message = simulate_message
 
-    # Google OAuth 메시지 핸들러 추가
     mock_websocket.handle_google_oauth_message = _create_google_oauth_response
 
-    # 자동 응답 설정
     original_send_json = mock_websocket.send_json
 
     async def auto_respond_send_json(message):
@@ -95,9 +85,6 @@ async def mock_websocket_client(mocker):
 
 @pytest_asyncio.fixture
 async def client():
-    """
-    테스트용 FastAPI 클라이언트를 생성합니다.
-    """
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as client:
@@ -106,7 +93,6 @@ async def client():
 
 @pytest_asyncio.fixture
 async def test_user_data():
-    """테스트용 사용자 데이터를 생성합니다."""
     return {
         "id": uuid4(),
         "uid": "123456789",
@@ -117,7 +103,6 @@ async def test_user_data():
 
 @pytest_asyncio.fixture
 async def test_room_data(test_user_data):
-    """테스트용 방 데이터를 생성합니다."""
     return {
         "id": uuid4(),
         "name": "테스트 방",
@@ -129,7 +114,6 @@ async def test_room_data(test_user_data):
 
 
 def _setup_room_ws_queues(mock_websocket):
-    """방 WebSocket 메시지 큐를 설정합니다."""
     send_queue = asyncio.Queue()
     receive_queue = asyncio.Queue()
 
@@ -149,20 +133,14 @@ def _setup_room_ws_queues(mock_websocket):
 
 @pytest_asyncio.fixture
 async def room_ws_client(mocker, test_user_data, test_room_data):
-    """
-    방 WebSocket 연결 테스트를 위한 모의 클라이언트를 생성합니다.
-    """
     mock_websocket = mocker.AsyncMock(spec=WebSocket)
 
-    # 헤더 모의
     mock_headers = mocker.MagicMock()
     mock_headers.get.return_value = "Bearer test_token"
     mock_websocket.headers = mock_headers
 
-    # close 메서드 설정
     mock_websocket.close.return_value = None
 
-    # 사용자 모델 생성
     user = User(
         id=test_user_data["id"],
         uid=test_user_data["uid"],
@@ -170,7 +148,6 @@ async def room_ws_client(mocker, test_user_data, test_room_data):
         email=test_user_data["email"],
     )
 
-    # 방 모델 생성
     room = Room(
         id=test_room_data["id"],
         name=test_room_data["name"],
@@ -180,7 +157,6 @@ async def room_ws_client(mocker, test_user_data, test_room_data):
         host_id=test_room_data["host_id"],
     )
 
-    # 방 사용자 모델 생성
     room_user = RoomUser(
         id=uuid4(),
         room_id=room.id,
@@ -188,21 +164,17 @@ async def room_ws_client(mocker, test_user_data, test_room_data):
         is_ready=False,
     )
 
-    # 비동기 JSON 송수신 설정
     send_queue, receive_queue = _setup_room_ws_queues(mock_websocket)
 
-    # client_state 모킹
     client_state = mocker.MagicMock()
     client_state.CONNECTED = True
     mock_websocket.client_state = client_state
 
-    # 메시지 시뮬레이션 메서드
     async def simulate_message(message):
         await receive_queue.put(message)
 
     mock_websocket.simulate_message = simulate_message
 
-    # 테스트에 필요한 데이터를 저장
     mock_websocket.test_data = {
         "user": user,
         "room": room,
@@ -214,8 +186,6 @@ async def room_ws_client(mocker, test_user_data, test_room_data):
 
 @pytest.fixture
 def mock_room_connection_manager(mocker):
-    """RoomConnectionManager를 모킹합니다."""
     original_manager = room_manager
 
-    # 테스트 종료 후 원래 매니저로 복원
     yield mocker.MagicMock(spec=original_manager)
