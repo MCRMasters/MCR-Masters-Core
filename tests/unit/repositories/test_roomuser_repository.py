@@ -78,15 +78,6 @@ async def test_room_users(test_db_session, test_room, test_users) -> list[RoomUs
 
 
 @pytest.mark.asyncio
-async def test_get_by_room(test_db_session, test_room, test_room_users):
-    repo = RoomUserRepository(test_db_session)
-    result = await repo.get_by_room(test_room.id)
-
-    assert len(result) == 3
-    assert all(ru.room_id == test_room.id for ru in result)
-
-
-@pytest.mark.asyncio
 async def test_get_by_user(test_db_session, test_users, test_room_users):
     repo = RoomUserRepository(test_db_session)
     result = await repo.get_by_user(test_users[0].id)

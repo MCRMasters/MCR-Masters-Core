@@ -2,6 +2,7 @@ from uuid import UUID
 
 from fastapi import WebSocket, status
 
+from app.core.error import MCRDomainError
 from app.core.security import get_user_id_from_token
 from app.models.user import User
 from app.repositories.room_repository import RoomRepository
@@ -82,15 +83,15 @@ class RoomConnectionManager:
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return None, None, None
 
-        user = await user_repository.get_by_uuid(user_id)
-        room = await room_repository.get_by_room_number(room_number)
+        try:
+            user = await user_repository.filter_one_or_raise(id=user_id)
+            room = await room_repository.filter_one_or_raise(room_number=room_number)
 
-        if not user or not room:
-            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-            return None, None, None
+            await room_user_repository.filter_one_or_raise(
+                user_id=user_id, room_id=room.id
+            )
 
-        room_user = await room_user_repository.get_by_user(user_id)
-        if not room_user or room_user.room_id != room.id:
+        except MCRDomainError:
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return None, None, None
 

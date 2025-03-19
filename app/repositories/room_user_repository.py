@@ -13,12 +13,6 @@ class RoomUserRepository(BaseRepository[RoomUser]):
     def __init__(self, session: AsyncSession):
         super().__init__(session, RoomUser, DomainErrorCode.USER_NOT_IN_ROOM)
 
-    async def get_by_room(self, room_id: UUID) -> list[RoomUser]:
-        result = await self.session.execute(
-            select(RoomUser).where(RoomUser.room_id == room_id),
-        )
-        return cast(list[RoomUser], result.scalars().all())
-
     async def get_by_user(self, user_id: UUID) -> RoomUser | None:
         result = await self.session.execute(
             select(RoomUser).where(RoomUser.user_id == user_id),
