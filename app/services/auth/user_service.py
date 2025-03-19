@@ -77,3 +77,6 @@ class UserService:
         updated_user = await self.user_repository.update(user)
         await self.session.commit()
         return updated_user
+
+    async def get_user_by_id(self, user_id: UUID) -> User | None:
+        return await self.user_repository.filter_one(id=user_id)
