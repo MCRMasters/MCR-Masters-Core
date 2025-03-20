@@ -2,12 +2,13 @@ from uuid import UUID
 
 from fastapi import WebSocket, status
 
-from app.core.error import MCRDomainError
+from app.core.error import DomainErrorCode, MCRDomainError
 from app.core.security import get_user_id_from_token
 from app.models.user import User
 from app.repositories.room_repository import RoomRepository
 from app.repositories.room_user_repository import RoomUserRepository
 from app.repositories.user_repository import UserRepository
+from app.schemas.ws import GameStartedData, WebSocketResponse, WSActionType
 
 
 class RoomConnectionManager:
@@ -53,6 +54,22 @@ class RoomConnectionManager:
             for user_id, connection in self.active_connections[room_id].items():
                 if exclude_user_id is None or user_id != exclude_user_id:
                     await connection.send_json(message)
+
+    async def broadcast_game_started(self, room_id: UUID, ws_url: str) -> None:
+        if room_id not in self.active_connections:
+            raise MCRDomainError(
+                code=DomainErrorCode.ROOM_NOT_FOUND,
+                message="room not exist",
+                details={"room_id": room_id},
+            )
+        for connection in self.active_connections[room_id].values():
+            await connection.send_json(
+                WebSocketResponse(
+                    status="success",
+                    action=WSActionType.GAME_STARTED,
+                    data=GameStartedData(game_url=ws_url).model_dump(),
+                ).model_dump()
+            )
 
     def get_room_users(self, room_id: UUID) -> set[UUID]:
         if room_id in self.active_connections:
