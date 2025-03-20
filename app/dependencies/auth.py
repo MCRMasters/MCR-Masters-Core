@@ -1,18 +1,17 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import get_user_id_from_token
-from app.db.session import get_session
+from app.dependencies.services import get_user_service
 from app.models.user import User
+from app.services.auth.user_service import UserService
 
 auth_scheme = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
     auth: HTTPAuthorizationCredentials = Depends(auth_scheme),
-    session: AsyncSession = Depends(get_session),
+    user_service: UserService = Depends(get_user_service),
 ) -> User:
     if auth is None:
         raise HTTPException(
@@ -31,8 +30,7 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    result = await session.execute(select(User).where(User.id == user_id))
-    user: User | None = result.scalar_one_or_none()
+    user = await user_service.get_user_by_id(user_id)
 
     if not user:
         raise HTTPException(

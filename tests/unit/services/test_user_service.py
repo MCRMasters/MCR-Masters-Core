@@ -154,3 +154,24 @@ async def test_update_nickname_already_set(mock_user_service, user_id, mocker):
 
     assert exc_info.value.code == DomainErrorCode.NICKNAME_ALREADY_SET
     assert user.nickname in exc_info.value.details["current_nickname"]
+
+
+@pytest.mark.asyncio
+async def test_get_user_by_id(mock_user_service, user_id, mocker):
+    user = User(
+        id=user_id, uid="123456789", nickname="TestUser", email="test@example.com"
+    )
+
+    mocker.patch(
+        "app.repositories.user_repository.UserRepository.filter_one",
+        return_value=user,
+    )
+
+    result = await mock_user_service.get_user_by_id(user_id)
+
+    assert result is not None
+    assert result.id == user_id
+    assert result.uid == "123456789"
+    assert result.nickname == "TestUser"
+
+    mock_user_service.user_repository.filter_one.assert_called_once_with(id=user_id)
