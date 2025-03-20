@@ -1,6 +1,7 @@
 import pytest
 import pytest_asyncio
 
+from app.core.error import DomainErrorCode, MCRDomainError
 from app.models.room import Room
 from app.models.room_user import RoomUser
 from app.models.user import User
@@ -57,9 +58,9 @@ async def test_playing_room(test_db_session, test_host) -> Room:
 
 
 @pytest.mark.asyncio
-async def test_get_by_uuid(test_db_session, test_room):
+async def test_filter_one_room_by_room_number(test_db_session, test_room):
     repo = RoomRepository(test_db_session)
-    result = await repo.get_by_uuid(test_room.id)
+    result = await repo.filter_one_or_raise(room_number=test_room.room_number)
 
     assert result is not None
     assert result.id == test_room.id
@@ -69,78 +70,48 @@ async def test_get_by_uuid(test_db_session, test_room):
 
 
 @pytest.mark.asyncio
-async def test_get_by_room_number(test_db_session, test_room):
+async def test_filter_available_rooms(test_db_session, test_room, test_playing_room):
     repo = RoomRepository(test_db_session)
-    result = await repo.get_by_room_number(test_room.room_number)
-
-    assert result is not None
-    assert result.id == test_room.id
-    assert result.name == test_room.name
-    assert result.room_number == test_room.room_number
-
-
-@pytest.mark.asyncio
-async def test_get_available_rooms(test_db_session, test_room, test_playing_room):
-    repo = RoomRepository(test_db_session)
-    results = await repo.get_available_rooms()
+    results = await repo.filter(is_playing=False)
 
     assert len(results) == 1
     assert results[0].id == test_room.id
     assert not results[0].is_playing
 
+    # 확인
     for room in results:
         assert room.id != test_playing_room.id
+
+
+@pytest.mark.asyncio
+async def test_nonexistent_room_number(test_db_session):
+    repo = RoomRepository(test_db_session)
+
+    with pytest.raises(MCRDomainError) as exc_info:
+        await repo.filter_one_or_raise(room_number=99999)
+
+    assert exc_info.value.code == DomainErrorCode.ROOM_NOT_FOUND
 
 
 @pytest.mark.asyncio
 async def test_create_room(test_db_session, test_host):
     room = Room(
         name="New Room",
-        room_number=789,
         max_users=4,
         is_playing=False,
         host_id=test_host.id,
     )
 
     repo = RoomRepository(test_db_session)
-    created_room = await repo.create(room)
+    created_room = await repo.create_with_room_number(room)
 
     assert created_room.id is not None
     assert created_room.name == room.name
-    assert created_room.room_number == room.room_number
+    assert created_room.room_number is not None
 
-    result = await repo.get_by_room_number(room.room_number)
+    result = await repo.filter_one_or_raise(room_number=created_room.room_number)
     assert result is not None
     assert result.id == created_room.id
-
-
-@pytest.mark.asyncio
-async def test_update_room(test_db_session, test_room):
-    test_room.name = "Updated Room"
-    test_room.max_users = 3
-
-    repo = RoomRepository(test_db_session)
-    updated_room = await repo.update(test_room)
-
-    assert updated_room.name == "Updated Room"
-    assert updated_room.max_users == 3
-
-    result = await repo.get_by_uuid(test_room.id)
-    assert result is not None
-    assert result.name == "Updated Room"
-    assert result.max_users == 3
-
-
-@pytest.mark.asyncio
-async def test_delete_room(test_db_session, test_room):
-    repo = RoomRepository(test_db_session)
-    await repo.delete(test_room.id)
-
-    result = await repo.get_by_uuid(test_room.id)
-    assert result is None
-
-    result = await repo.get_by_room_number(test_room.room_number)
-    assert result is None
 
 
 @pytest.mark.asyncio

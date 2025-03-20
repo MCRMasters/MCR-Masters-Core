@@ -16,6 +16,7 @@ class DomainErrorCode(str, Enum):
     NOT_ENOUGH_PLAYERS = "NOT_ENOUGH_PLAYERS"
     PLAYERS_NOT_READY = "PLAYERS_NOT_READY"
     NOT_HOST = "NOT_HOST"
+    USER_NOT_IN_ROOM = "USER_NOT_IN_ROOM"
 
 
 class MCRDomainError(Exception):

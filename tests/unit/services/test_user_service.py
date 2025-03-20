@@ -6,34 +6,25 @@ from app.models.user import User
 
 @pytest.mark.asyncio
 async def test_generate_unique_uid(mock_user_service, mocker):
-    existing_uid = "123456789"
-    new_uid = "987654321"
-
     mocker.patch(
-        "app.repositories.user_repository.UserRepository.get_by_uid",
-        side_effect=[User(uid=existing_uid, nickname=""), None],
-    )
-
-    mocker.patch(
-        "app.services.auth.user_service.randint",
-        return_value=int(new_uid),
+        "app.repositories.user_repository.UserRepository.count",
+        side_effect=[
+            1,
+            0,
+        ],
     )
 
     generated_uid = await mock_user_service.generate_unique_uid()
-    assert generated_uid == new_uid
+
+    assert len(generated_uid) == 9
+    assert generated_uid.isdigit()
 
 
 @pytest.mark.asyncio
 async def test_generate_unique_uid_failure(mock_user_service, mocker):
     mocker.patch(
-        "app.services.auth.user_service.randint",
-        return_value=123456789,
-    )
-
-    existing_user = User(uid="123456789", nickname="ExName")
-    mocker.patch(
-        "app.repositories.user_repository.UserRepository.get_by_uid",
-        return_value=existing_user,
+        "app.repositories.user_repository.UserRepository.count",
+        return_value=1,
     )
 
     with pytest.raises(MCRDomainError) as exc_info:
@@ -47,7 +38,7 @@ async def test_get_or_create_user_new(mock_user_service, mocker):
     user_info = {"email": "new@example.com"}
 
     mocker.patch(
-        "app.repositories.user_repository.UserRepository.get_by_email",
+        "app.repositories.user_repository.UserRepository.filter_one",
         return_value=None,
     )
 
@@ -81,7 +72,7 @@ async def test_get_or_create_user_existing(mock_user_service, mocker):
     )
 
     mocker.patch(
-        "app.repositories.user_repository.UserRepository.get_by_email",
+        "app.repositories.user_repository.UserRepository.filter_one",
         return_value=existing_user,
     )
 
@@ -103,7 +94,7 @@ async def test_get_or_create_user_existing_empty_nickname(mock_user_service, moc
     )
 
     mocker.patch(
-        "app.repositories.user_repository.UserRepository.get_by_email",
+        "app.repositories.user_repository.UserRepository.filter_one",
         return_value=existing_user,
     )
 

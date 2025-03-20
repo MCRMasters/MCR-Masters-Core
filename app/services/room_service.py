@@ -39,15 +39,9 @@ class RoomService:
         return f"{adj} {noun}"
 
     async def create_room(self, user_id: UUID) -> Room:
-        user = await self.user_repository.get_by_uuid(user_id)
-        if not user:
-            raise MCRDomainError(
-                code=DomainErrorCode.USER_NOT_FOUND,
-                message=f"User with ID {user_id} not found",
-                details={"user_id": str(user_id)},
-            )
+        await self.user_repository.filter_one_or_raise(id=user_id)
 
-        existing_room_user = await self.room_user_repository.get_by_user(user_id)
+        existing_room_user = await self.room_user_repository.filter_one(user_id=user_id)
         if existing_room_user:
             raise MCRDomainError(
                 code=DomainErrorCode.USER_ALREADY_IN_ROOM,
@@ -75,21 +69,9 @@ class RoomService:
         return created_room
 
     async def join_room(self, user_id: UUID, room_id: UUID) -> RoomUser:
-        user = await self.user_repository.get_by_uuid(user_id)
-        if not user:
-            raise MCRDomainError(
-                code=DomainErrorCode.USER_NOT_FOUND,
-                message=f"User with ID {user_id} not found",
-                details={"user_id": str(user_id)},
-            )
+        await self.user_repository.filter_one_or_raise(id=user_id)
 
-        room = await self.room_repository.get_by_uuid(room_id)
-        if not room:
-            raise MCRDomainError(
-                code=DomainErrorCode.ROOM_NOT_FOUND,
-                message=f"Room with ID {room_id} not found",
-                details={"room_id": str(room_id)},
-            )
+        room = await self.room_repository.filter_one_or_raise(id=room_id)
 
         if room.is_playing:
             raise MCRDomainError(
@@ -98,7 +80,7 @@ class RoomService:
                 details={"room_id": str(room_id)},
             )
 
-        room_users = await self.room_user_repository.get_by_room(room_id)
+        room_users = await self.room_user_repository.filter(room_id=room_id)
         if len(room_users) >= room.max_users:
             raise MCRDomainError(
                 code=DomainErrorCode.ROOM_IS_FULL,
@@ -106,7 +88,7 @@ class RoomService:
                 details={"room_id": str(room_id), "max_users": room.max_users},
             )
 
-        existing_room_user = await self.room_user_repository.get_by_user(user_id)
+        existing_room_user = await self.room_user_repository.filter_one(user_id=user_id)
         if existing_room_user:
             raise MCRDomainError(
                 code=DomainErrorCode.USER_ALREADY_IN_ROOM,
@@ -132,18 +114,19 @@ class RoomService:
 
         result = []
         for room, room_users in rooms_with_users:
-            host_user = await self.user_repository.get_by_uuid(room.host_id)
-            host_nickname = host_user.nickname if host_user else "Unknown"
+            host_user = await self.user_repository.filter_one_or_raise(id=room.host_id)
+            host_nickname = host_user.nickname
 
             users = []
             for room_user in room_users:
-                user = await self.user_repository.get_by_uuid(room_user.user_id)
-                if user:
-                    users.append(
-                        RoomUserResponse(
-                            nickname=user.nickname, is_ready=room_user.is_ready
-                        )
+                user = await self.user_repository.filter_one_or_raise(
+                    id=room_user.user_id
+                )
+                users.append(
+                    RoomUserResponse(
+                        nickname=user.nickname, is_ready=room_user.is_ready
                     )
+                )
 
             room_data = AvailableRoomResponse(
                 name=room.name,
@@ -160,23 +143,11 @@ class RoomService:
     async def validate_room_user_connection(
         self, user_id: UUID, room_number: int
     ) -> tuple[User, Room, RoomUser]:
-        user = await self.user_repository.get_by_uuid(user_id)
-        if not user:
-            raise MCRDomainError(
-                code=DomainErrorCode.USER_NOT_FOUND,
-                message=f"User with ID {user_id} not found",
-                details={"user_id": str(user_id)},
-            )
+        user = await self.user_repository.filter_one_or_raise(id=user_id)
 
-        room = await self.room_repository.get_by_room_number(room_number)
-        if not room:
-            raise MCRDomainError(
-                code=DomainErrorCode.ROOM_NOT_FOUND,
-                message=f"Room with number {room_number} not found",
-                details={"room_number": room_number},
-            )
+        room = await self.room_repository.filter_one_or_raise(room_number=room_number)
 
-        room_user = await self.room_user_repository.get_by_user(user_id)
+        room_user = await self.room_user_repository.filter_one(user_id=user_id)
         if not room_user or room_user.room_id != room.id:
             raise MCRDomainError(
                 code=DomainErrorCode.USER_ALREADY_IN_ROOM,
@@ -192,7 +163,7 @@ class RoomService:
     async def update_user_ready_status(
         self, user_id: UUID, room_id: UUID, is_ready: bool
     ) -> RoomUser:
-        room_user = await self.room_user_repository.get_by_user(user_id)
+        room_user = await self.room_user_repository.filter_one(user_id=user_id)
         if not room_user or room_user.room_id != room_id:
             raise MCRDomainError(
                 code=DomainErrorCode.USER_NOT_FOUND,
@@ -209,13 +180,7 @@ class RoomService:
         return updated_room_user
 
     async def end_game(self, room_id: UUID) -> Room:
-        room = await self.room_repository.get_by_uuid(room_id)
-        if not room:
-            raise MCRDomainError(
-                code=DomainErrorCode.ROOM_NOT_FOUND,
-                message=f"Room with ID {room_id} not found",
-                details={"room_id": str(room_id)},
-            )
+        room = await self.room_repository.filter_one_or_raise(id=room_id)
 
         if not room.is_playing:
             raise MCRDomainError(
@@ -227,7 +192,7 @@ class RoomService:
         room.is_playing = False
         updated_room = await self.room_repository.update(room)
 
-        room_users = await self.room_user_repository.get_by_room(room_id)
+        room_users = await self.room_user_repository.filter(room_id=room_id)
 
         for room_user in room_users:
             if room_user.user_id != room.host_id:
@@ -238,13 +203,7 @@ class RoomService:
         return updated_room
 
     async def start_game(self, room_id: UUID) -> Room:
-        room = await self.room_repository.get_by_uuid(room_id)
-        if not room:
-            raise MCRDomainError(
-                code=DomainErrorCode.ROOM_NOT_FOUND,
-                message=f"Room with ID {room_id} not found",
-                details={"room_id": str(room_id)},
-            )
+        room = await self.room_repository.filter_one_or_raise(id=room_id)
 
         if room.is_playing:
             raise MCRDomainError(
@@ -253,7 +212,7 @@ class RoomService:
                 details={"room_id": str(room_id)},
             )
 
-        room_users = await self.room_user_repository.get_by_room(room_id)
+        room_users = await self.room_user_repository.filter(room_id=room_id)
         if len(room_users) < 4:
             raise MCRDomainError(
                 code=DomainErrorCode.NOT_ENOUGH_PLAYERS,

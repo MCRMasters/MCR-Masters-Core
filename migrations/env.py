@@ -43,7 +43,6 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
-    # 비동기 URI에서 동기 URI로 변경
     sync_uri = settings.sync_database_uri
 
     configuration = config.get_section(config.config_ini_section)

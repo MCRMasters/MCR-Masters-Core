@@ -23,8 +23,8 @@ class UserService:
         for _ in range(max_attempts):
             uid = validate_uid(str(randint(100000000, 999999999)))
 
-            existing_user = await self.user_repository.get_by_uid(uid)
-            if not existing_user:
+            count = await self.user_repository.count(uid=uid)
+            if count == 0:
                 return uid
 
         raise MCRDomainError(
@@ -36,7 +36,7 @@ class UserService:
         )
 
     async def get_or_create_user(self, user_info: dict[str, Any]) -> tuple[User, bool]:
-        existing_user = await self.user_repository.get_by_email(user_info["email"])
+        existing_user = await self.user_repository.filter_one(email=user_info["email"])
 
         if not existing_user:
             new_uid = await self.generate_unique_uid()

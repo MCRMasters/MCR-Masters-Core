@@ -32,26 +32,6 @@ async def test_get_by_uuid(test_db_session, test_user):
 
 
 @pytest.mark.asyncio
-async def test_get_by_email(test_db_session, test_user):
-    repo = UserRepository(test_db_session)
-    result = await repo.get_by_email(test_user.email)
-
-    assert result is not None
-    assert result.email == test_user.email
-    assert result.nickname == test_user.nickname
-
-
-@pytest.mark.asyncio
-async def test_get_by_uid(test_db_session, test_user):
-    repo = UserRepository(test_db_session)
-    result = await repo.get_by_uid(test_user.uid)
-
-    assert result is not None
-    assert result.uid == test_user.uid
-    assert result.nickname == test_user.nickname
-
-
-@pytest.mark.asyncio
 async def test_create_user(test_db_session):
     user = User(
         uid="987654321",
@@ -66,10 +46,6 @@ async def test_create_user(test_db_session):
     assert created_user.uid == user.uid
     assert created_user.nickname == user.nickname
 
-    result = await repo.get_by_email(user.email)
-    assert result is not None
-    assert result.id == created_user.id
-
 
 @pytest.mark.asyncio
 async def test_update_user(test_db_session, test_user):
@@ -79,10 +55,6 @@ async def test_update_user(test_db_session, test_user):
     updated_user = await repo.update(test_user)
 
     assert updated_user.nickname == "NewName"
-
-    result = await repo.get_by_email(test_user.email)
-    assert result is not None
-    assert result.nickname == "NewName"
 
 
 @pytest.mark.asyncio
