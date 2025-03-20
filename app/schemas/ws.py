@@ -16,6 +16,7 @@ class WSActionType(str, Enum):
     USER_JOINED = "user_joined"
     USER_LEFT = "user_left"
     USER_READY_CHANGED = "user_ready_changed"
+    GAME_STARTED = "game_started"
     ERROR = "error"
 
 
@@ -45,3 +46,7 @@ class UserJoinedData(BaseModel):
 
 class UserLeftData(BaseModel):
     user_id: UUID
+
+
+class GameStartedData(BaseModel):
+    game_url: str
