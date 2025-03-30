@@ -27,6 +27,7 @@ class GoogleAuthParams(BaseModel):
     scope: str = "openid email profile"
     access_type: str = "offline"
     prompt: str = "consent"
+    state: str
 
 
 class GoogleTokenRequest(BaseModel):
