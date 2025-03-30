@@ -28,10 +28,11 @@ class GoogleOAuthService:
         self.client_secret = settings.GOOGLE_CLIENT_SECRET
         self.redirect_uri = settings.GOOGLE_REDIRECT_URI
 
-    def get_authorization_url(self) -> str:
+    def get_authorization_url(self, state: str) -> str:
         params = GoogleAuthParams(
             client_id=self.client_id,
             redirect_uri=self.redirect_uri,
+            state=state,
         )
         return f"{self.auth_url}?{urlencode(params.model_dump())}"
 

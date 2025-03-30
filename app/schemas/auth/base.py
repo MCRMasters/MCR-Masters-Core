@@ -3,6 +3,7 @@ from pydantic import BaseModel
 
 class AuthUrlResponse(BaseModel):
     auth_url: str
+    session_id: str
 
 
 class TokenResponse(BaseModel):
