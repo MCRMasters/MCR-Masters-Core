@@ -39,13 +39,15 @@ class RoomConnectionManager:
             del self.user_rooms[user_id]
 
     async def send_personal_message(
-        self, message: dict, room_id: UUID, user_id: UUID
+        self, message: dict, room_id: str, user_id: str
     ) -> None:
+        _room_id: UUID = UUID(room_id)
+        _user_id: UUID = UUID(user_id)
         if (
-            room_id in self.active_connections
-            and user_id in self.active_connections[room_id]
+            _room_id in self.active_connections
+            and _user_id in self.active_connections[_room_id]
         ):
-            await self.active_connections[room_id][user_id].send_json(message)
+            await self.active_connections[_room_id][_user_id].send_json(message)
 
     async def broadcast(
         self, message: dict, room_id: UUID, exclude_user_id: UUID | None = None

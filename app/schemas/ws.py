@@ -35,11 +35,12 @@ class WebSocketResponse(BaseModel):
 
 class UserReadyData(BaseModel):
     user_id: UUID
+    nickname: str
     is_ready: bool
 
 
 class UserJoinedData(BaseModel):
-    user_id: UUID
+    user_id: str
     nickname: str
     is_ready: bool = False
 
