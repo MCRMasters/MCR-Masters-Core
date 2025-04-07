@@ -64,6 +64,8 @@ async def test_room_users(test_db_session, test_room, test_users) -> list[RoomUs
         room_user = RoomUser(
             room_id=test_room.id,
             user_id=user.id,
+            user_uid=user.uid,
+            user_nickname=user.nickname,
             is_ready=(idx < 2),
         )
         test_db_session.add(room_user)
@@ -91,6 +93,8 @@ async def test_create_and_update_room_user(test_db_session, test_room):
     room_user = RoomUser(
         room_id=test_room.id,
         user_id=new_user.id,
+        user_uid=new_user.uid,
+        user_nickname=new_user.nickname,
         is_ready=False,
     )
 

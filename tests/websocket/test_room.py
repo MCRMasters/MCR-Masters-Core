@@ -37,7 +37,6 @@ async def test_connection_success(room_ws_client, mocker):
         ) as mock_broadcast,
     ):
         mocker.patch.object(handler, "handle_messages", return_value=None)
-
         mocker.patch.object(handler, "handle_disconnection", return_value=None)
         result = await handler.handle_connection()
 
@@ -64,7 +63,7 @@ async def test_ping_pong(room_ws_client, mocker):
     with patch(
         "app.core.room_connection_manager.room_manager.send_personal_message"
     ) as mock_send:
-        await handler.handle_ping({"action": "ping"})
+        await handler.handle_ping(WebSocketMessage(action="ping", data={}))
 
     mock_send.assert_called_once()
     args, _ = mock_send.call_args
@@ -86,10 +85,10 @@ async def test_ready_status(room_ws_client, mocker):
         room_number=room_ws_client.test_data["room"].room_number,
         room_service=mock_room_service,
     )
-
     handler.user_id = room_ws_client.test_data["user"].id
     handler.room_id = room_ws_client.test_data["room"].id
     handler.room_user = room_ws_client.test_data["room_user"]
+    handler.user = room_ws_client.test_data["user"]
 
     message = WebSocketMessage(action="ready", data={"is_ready": True})
 
@@ -105,24 +104,20 @@ async def test_ready_status(room_ws_client, mocker):
     args, _ = mock_broadcast.call_args
     assert args[0]["action"] == WSActionType.USER_READY_CHANGED
     assert args[0]["status"] == "success"
-    assert args[0]["data"]["user_id"] == handler.user_id
+    assert args[0]["data"]["user_uid"] == handler.user.uid
     assert args[0]["data"]["is_ready"] is True
 
 
 @pytest.mark.asyncio
 async def test_connection_invalid_token(room_ws_client, mocker):
     room_ws_client.headers.get.return_value = None
-
     mock_room_service = mocker.AsyncMock()
-
     handler = RoomWebSocketHandler(
         websocket=room_ws_client,
         room_number=1234,
         room_service=mock_room_service,
     )
-
     result = await handler.handle_connection()
-
     assert not result
     room_ws_client.close.assert_called_once()
 
@@ -130,20 +125,16 @@ async def test_connection_invalid_token(room_ws_client, mocker):
 @pytest.mark.asyncio
 async def test_connection_room_not_found(room_ws_client, mocker):
     mock_room_service = mocker.AsyncMock()
-
     error = MCRDomainError(
         code=DomainErrorCode.ROOM_NOT_FOUND,
         message="Room not found",
     )
     mock_room_service.validate_room_user_connection.side_effect = error
-
     handler = RoomWebSocketHandler(
         websocket=room_ws_client,
         room_number=9999,
         room_service=mock_room_service,
     )
-
     result = await handler.handle_connection()
-
     assert not result
     room_ws_client.close.assert_called_once()

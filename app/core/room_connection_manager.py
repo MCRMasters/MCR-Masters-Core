@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from fastapi import WebSocket, status
+from fastapi.encoders import jsonable_encoder  # 추가
 
 from app.core.error import DomainErrorCode, MCRDomainError
 from app.core.security import get_user_id_from_token
@@ -45,15 +46,17 @@ class RoomConnectionManager:
             room_id in self.active_connections
             and user_id in self.active_connections[room_id]
         ):
-            await self.active_connections[room_id][user_id].send_json(message)
+            json_message = jsonable_encoder(message)
+            await self.active_connections[room_id][user_id].send_json(json_message)
 
     async def broadcast(
         self, message: dict, room_id: UUID, exclude_user_id: UUID | None = None
     ) -> None:
         if room_id in self.active_connections:
+            json_message = jsonable_encoder(message)
             for user_id, connection in self.active_connections[room_id].items():
                 if exclude_user_id is None or user_id != exclude_user_id:
-                    await connection.send_json(message)
+                    await connection.send_json(json_message)
 
     async def broadcast_game_started(self, room_id: UUID, ws_url: str) -> None:
         if room_id not in self.active_connections:
@@ -62,14 +65,14 @@ class RoomConnectionManager:
                 message="room not exist",
                 details={"room_id": room_id},
             )
+        response = WebSocketResponse(
+            status="success",
+            action=WSActionType.GAME_STARTED,
+            data=GameStartedData(game_url=ws_url).model_dump(),
+        )
+        json_message = jsonable_encoder(response.model_dump())
         for connection in self.active_connections[room_id].values():
-            await connection.send_json(
-                WebSocketResponse(
-                    status="success",
-                    action=WSActionType.GAME_STARTED,
-                    data=GameStartedData(game_url=ws_url).model_dump(),
-                ).model_dump()
-            )
+            await connection.send_json(json_message)
 
     def get_room_users(self, room_id: UUID) -> set[UUID]:
         if room_id in self.active_connections:
@@ -103,11 +106,9 @@ class RoomConnectionManager:
         try:
             user = await user_repository.filter_one_or_raise(id=user_id)
             room = await room_repository.filter_one_or_raise(room_number=room_number)
-
             await room_user_repository.filter_one_or_raise(
                 user_id=user_id, room_id=room.id
             )
-
         except MCRDomainError:
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return None, None, None

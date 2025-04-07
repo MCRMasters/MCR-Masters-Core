@@ -26,8 +26,8 @@ class RoomService:
     ):
         self.session = session
         self.room_repository = room_repository or RoomRepository(session)
-        self.room_user_repository = room_user_repository or RoomUserRepository(session)
         self.user_repository = user_repository or UserRepository(session)
+        self.room_user_repository = room_user_repository or RoomUserRepository(session)
 
     def _generate_random_room_name(self) -> str:
         adjectives = ["엄숙한", "치열한", "고요한", "은은한", "화려한"]
@@ -38,22 +38,26 @@ class RoomService:
 
         return f"{adj} {noun}"
 
-    async def create_room(self, user_id: UUID) -> Room:
-        await self.user_repository.filter_one_or_raise(id=user_id)
+    async def create_room(self, current_user_id: UUID) -> Room:
+        user: User = await self.user_repository.filter_one_or_raise(id=current_user_id)
 
-        existing_room_user = await self.room_user_repository.filter_one(user_id=user_id)
+        await self.user_repository.filter_one_or_raise(id=current_user_id)
+
+        existing_room_user = await self.room_user_repository.filter_one(
+            user_id=current_user_id
+        )
         if existing_room_user:
             raise MCRDomainError(
                 code=DomainErrorCode.USER_ALREADY_IN_ROOM,
-                message=f"User with ID {user_id} is already in a room",
+                message=f"User with ID {current_user_id} is already in a room",
                 details={
-                    "user_id": str(user_id),
+                    "user_id": str(current_user_id),
                     "current_room_id": str(existing_room_user.room_id),
                 },
             )
 
-        created_room = await self._create_room_internal(user_id)
-        await self._join_room_internal(user_id, created_room.id)
+        created_room = await self._create_room_internal(current_user_id)
+        await self._join_room_internal(user=user, room_id=created_room.id)
         await self.session.commit()
         return created_room
 
@@ -69,7 +73,7 @@ class RoomService:
         return created_room
 
     async def join_room(self, user_id: UUID, room_id: UUID) -> RoomUser:
-        await self.user_repository.filter_one_or_raise(id=user_id)
+        user: User = await self.user_repository.filter_one_or_raise(id=user_id)
 
         room = await self.room_repository.filter_one_or_raise(id=room_id)
 
@@ -99,19 +103,37 @@ class RoomService:
                 },
             )
 
-        room_user = await self._join_room_internal(user_id, room_id)
+        used_slot_indexes: set[int] = set()
+        new_slot_index: int = 0
+        for room_user in room_users:
+            used_slot_indexes.add(room_user.slot_index)
+        for index in range(room.max_users):
+            if index not in used_slot_indexes:
+                new_slot_index = index
+                break
+        room_user = await self._join_room_internal(
+            user=user, room_id=room_id, slot_index=new_slot_index
+        )
         await self.session.commit()
         return room_user
 
-    async def _join_room_internal(self, user_id: UUID, room_id: UUID) -> RoomUser:
-        room_user = RoomUser(room_id=room_id, user_id=user_id, is_ready=False)
+    async def _join_room_internal(
+        self, user: User, room_id: UUID, slot_index: int = 0
+    ) -> RoomUser:
+        room_user = RoomUser(
+            room_id=room_id,
+            user_id=user.id,
+            user_uid=user.uid,
+            user_nickname=user.nickname,
+            slot_index=slot_index,
+            is_ready=False,
+        )
 
         created_room_user = await self.room_user_repository.create(room_user)
         return created_room_user
 
     async def get_available_rooms(self) -> list[AvailableRoomResponse]:
         rooms_with_users = await self.room_repository.get_available_rooms_with_users()
-
         result = []
         for room, room_users in rooms_with_users:
             host_user = await self.user_repository.filter_one_or_raise(id=room.host_id)
@@ -124,7 +146,10 @@ class RoomService:
                 )
                 users.append(
                     RoomUserResponse(
-                        nickname=user.nickname, is_ready=room_user.is_ready
+                        nickname=user.nickname,
+                        uid=user.uid,
+                        is_ready=room_user.is_ready,
+                        slot_index=room_user.slot_index,
                     )
                 )
 
@@ -133,6 +158,7 @@ class RoomService:
                 room_number=room.room_number,
                 max_users=room.max_users,
                 current_users=len(room_users),
+                host_uid=host_user.uid,
                 host_nickname=host_nickname,
                 users=users,
             )

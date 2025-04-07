@@ -13,6 +13,9 @@ class RoomUser(TimeStampMixin, SQLModel, table=True):  # type: ignore[call-arg]
     )
     room_id: UUID = Field(foreign_key="room.id")
     user_id: UUID = Field(foreign_key="user.id")
+    user_uid: str
+    user_nickname: str
     is_ready: bool = Field(default=False)
+    slot_index: int = Field(default=0)
 
     __table_args__ = (UniqueConstraint("user_id"),)
