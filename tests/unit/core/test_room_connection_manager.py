@@ -73,8 +73,8 @@ async def test_authenticate_and_validate_connection_success():
             user_repository,
         )
 
-    assert result[0] == user_id  # user_id 체크
-    assert result[1] == room_id  # room_id 체크
+    assert result[0] == str(user_id)  # user_id 체크
+    assert result[1] == str(room_id)  # room_id 체크
     assert result[2].id == user.id  # user 객체의 id 체크
     websocket.close.assert_not_called()
 

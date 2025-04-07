@@ -237,7 +237,7 @@ class RoomService:
         updated_room = await self.room_repository.update(room)
         await self.session.commit()
 
-        await room_manager.broadcast_game_started(room_id, game_websocket_url)
+        await room_manager.broadcast_game_started(str(room_id), game_websocket_url)
         return updated_room
 
     @staticmethod
@@ -248,5 +248,7 @@ class RoomService:
                 timeout=5.0,
             )
             response.raise_for_status()
+            # 디버그 로그 추가
+            print("[DEBUG] Game server response:", response.text)
             game_data: dict[str, str] = response.json()
             return game_data.get("websocket_url", "")

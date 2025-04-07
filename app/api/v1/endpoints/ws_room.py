@@ -37,6 +37,7 @@ class RoomWebSocketHandler:
         self.room_id: UUID | None = None
         self.user = None
         self.room_user = None
+        self.user_nickname: str | None = None  # 추가됨
 
     async def handle_connection(self):
         debug_print("handle_connection 시작")
@@ -73,6 +74,7 @@ class RoomWebSocketHandler:
 
             self.user_id = self.user.id
             self.room_id = room.id
+            self.user_nickname = self.user.nickname  # 추가된 부분
             debug_print(
                 "user_id 및 room_id 저장: "
                 "user_id={self.user_id}, room_id={self.room_id}"
@@ -80,7 +82,9 @@ class RoomWebSocketHandler:
 
             debug_print("room_manager.connect 호출")
             await room_manager.connect(
-                self.websocket, str(self.room_id), str(self.user_id)
+                websocket=self.websocket,
+                room_id=str(self.room_id),
+                user_id=str(self.user_id),
             )
             debug_print("WebSocket 연결 등록 완료")
 
@@ -90,7 +94,6 @@ class RoomWebSocketHandler:
                 is_ready=self.room_user.is_ready,
             )
             debug_print(f"사용자 입장 데이터: {join_data}")
-            # model_dump_json()을 사용하여 datetime 등이 문자열로 변환된 dict 생성
             await room_manager.broadcast(
                 json.loads(
                     WebSocketResponse(
@@ -196,7 +199,7 @@ class RoomWebSocketHandler:
             )
             ready_data = UserReadyData(
                 user_id=self.user_id,  # UUID 타입 그대로 사용
-                nickname=self.user_nickname,
+                nickname=self.user_nickname,  # 수정된 부분
                 is_ready=updated_room_user.is_ready,
             )
 
@@ -247,7 +250,6 @@ async def room_websocket(
     room_number: int,
     room_service: RoomService = Depends(get_room_service),
 ):
-    print(f"[DEBUG] WebSocket endpoint 호출: room_number={room_number}")
-    print("ageegwa")
+    debug_print(f"WebSocket endpoint 호출: room_number={room_number}")
     handler = RoomWebSocketHandler(websocket, room_number, room_service)
     await handler.handle_connection()

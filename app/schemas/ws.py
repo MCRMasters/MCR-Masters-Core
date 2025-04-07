@@ -30,7 +30,7 @@ class WebSocketResponse(BaseModel):
     action: str
     data: dict[str, Any] | None = None
     error: str | None = None
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    timestamp: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
 
 
 class UserReadyData(BaseModel):

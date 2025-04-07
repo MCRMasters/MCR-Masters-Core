@@ -356,7 +356,7 @@ class TestRoomServiceGameManagement:
 
         RoomService._call_game_server_api.assert_awaited_once()
 
-        mock_broadcast.assert_awaited_once_with(room_id, game_websocket_url)
+        mock_broadcast.assert_awaited_once_with(str(room_id), game_websocket_url)
 
     @pytest.mark.asyncio
     async def test_start_game_room_not_found(self, mock_room_service, room_id):

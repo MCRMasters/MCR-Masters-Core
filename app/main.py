@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request, status
+from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -59,5 +60,11 @@ async def mcr_domain_error_handler(
 
     return JSONResponse(
         status_code=status_code,
-        content={"detail": exc.message, "code": exc.code, "error_details": exc.details},
+        content=jsonable_encoder(
+            {
+                "detail": exc.message,
+                "code": exc.code,
+                "error_details": exc.details,
+            }
+        ),
     )
