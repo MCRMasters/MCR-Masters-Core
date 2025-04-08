@@ -1,12 +1,15 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, status
+from fastapi.encoders import jsonable_encoder
 from pydantic import ValidationError
 
 from app.core.error import MCRDomainError
 from app.core.room_connection_manager import room_manager
 from app.core.security import get_user_id_from_token
 from app.dependencies.services import get_room_service
+from app.models.room_user import RoomUser
+from app.models.user import User
 from app.schemas.ws import (
     UserJoinedData,
     UserLeftData,
@@ -22,95 +25,105 @@ router = APIRouter()
 
 class RoomWebSocketHandler:
     def __init__(
-        self,
-        websocket: WebSocket,
-        room_number: int,
-        room_service: RoomService,
+        self, websocket: WebSocket, room_number: int, room_service: RoomService
     ):
         self.websocket = websocket
         self.room_number = room_number
         self.room_service = room_service
-
         self.user_id: UUID | None = None
         self.room_id: UUID | None = None
-        self.user = None
-        self.room_user = None
+        self.user: User | None = None
+        self.room_user: RoomUser | None = None
 
     async def handle_connection(self):
+        result = True
         try:
             token = self.websocket.headers.get("authorization")
             if not token:
                 await self.websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-                return False
+                result = False
+            else:
+                user_id = get_user_id_from_token(token)
+                if not user_id:
+                    await self.websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                    result = False
+                else:
+                    (
+                        self.user,
+                        room,
+                        self.room_user,
+                    ) = await self.room_service.validate_room_user_connection(
+                        user_id, self.room_number
+                    )
 
-            user_id = get_user_id_from_token(token)
-            if not user_id:
-                await self.websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-                return False
+                    self.user_id = self.user.id
+                    self.room_id = room.id
 
-            (
-                self.user,
-                room,
-                self.room_user,
-            ) = await self.room_service.validate_room_user_connection(
-                user_id, self.room_number
-            )
+                    await room_manager.connect(
+                        self.websocket, self.room_id, self.user_id
+                    )
 
-            self.user_id = self.user.id
-            self.room_id = room.id
+                    if self.user is None or self.room_user is None:
+                        await self.websocket.send_json(
+                            jsonable_encoder(
+                                WebSocketResponse(
+                                    status="error",
+                                    action=WSActionType.ERROR,
+                                    error="User or room user data is missing",
+                                )
+                            )
+                        )
+                        await self.websocket.close(code=status.WS_1011_INTERNAL_ERROR)
+                        result = False
+                    else:
+                        join_data = UserJoinedData(
+                            user_uid=self.user.uid,
+                            nickname=self.user.nickname,
+                            is_ready=self.room_user.is_ready,
+                            slot_index=self.room_user.slot_index,
+                        )
 
-            await room_manager.connect(self.websocket, self.room_id, self.user_id)
+                        await room_manager.broadcast(
+                            WebSocketResponse(
+                                status="success",
+                                action=WSActionType.USER_JOINED,
+                                data=join_data.model_dump(),
+                            ).model_dump(),
+                            self.room_id,
+                            exclude_user_id=self.user_id,
+                        )
 
-            join_data = UserJoinedData(
-                user_id=self.user_id,
-                nickname=self.user.nickname,
-                is_ready=self.room_user.is_ready,
-            )
-
-            await room_manager.broadcast(
-                WebSocketResponse(
-                    status="success",
-                    action=WSActionType.USER_JOINED,
-                    data=join_data.model_dump(),
-                ).model_dump(),
-                self.room_id,
-                exclude_user_id=self.user_id,
-            )
-
-            await self.handle_messages()
-
+                        await self.handle_messages()
         except MCRDomainError as e:
             await self.websocket.close(
                 code=status.WS_1008_POLICY_VIOLATION, reason=str(e)
             )
-            return False
+            result = False
         except WebSocketDisconnect:
             await self.handle_disconnection()
-            return False
+            result = False
         except Exception as e:
             await self.handle_error(e)
-            return False
-        finally:
-            if self.room_id and self.user_id:
-                room_manager.disconnect(self.room_id, self.user_id)
+            result = False
 
-        return True
+        return result
 
     async def handle_messages(self):
         while True:
             data = await self.websocket.receive_json()
-
             try:
                 message = WebSocketMessage(
                     action=data.get("action", ""), data=data.get("data")
                 )
             except ValidationError as e:
                 await self.websocket.send_json(
-                    WebSocketResponse(
-                        status="error",
-                        action=WSActionType.ERROR,
-                        error=f"Invalid message format: {e!s}",
-                    ).model_dump()
+                    jsonable_encoder(
+                        WebSocketResponse(
+                            status="error",
+                            action=WSActionType.ERROR,
+                            error=f"Invalid message format: {e!s}",
+                        )
+                    )
                 )
                 continue
 
@@ -125,26 +138,42 @@ class RoomWebSocketHandler:
                 await handler(message)
             else:
                 await self.websocket.send_json(
-                    WebSocketResponse(
-                        status="error",
-                        action=WSActionType.ERROR,
-                        error=f"Unknown action: {message.action}",
-                    ).model_dump()
+                    jsonable_encoder(
+                        WebSocketResponse(
+                            status="error",
+                            action=WSActionType.ERROR,
+                            error=f"Unknown action: {message.action}",
+                        )
+                    )
                 )
 
     async def handle_ping(self, _: WebSocketMessage):
         if self.room_id and self.user_id:
             await room_manager.send_personal_message(
-                WebSocketResponse(
-                    status="success",
-                    action=WSActionType.PONG,
-                    data={"message": "pong"},
-                ).model_dump(),
+                jsonable_encoder(
+                    WebSocketResponse(
+                        status="success",
+                        action=WSActionType.PONG,
+                        data={"message": "pong"},
+                    )
+                ),
                 self.room_id,
                 self.user_id,
             )
 
     async def handle_ready(self, message: WebSocketMessage):
+        if self.user is None:
+            await self.websocket.send_json(
+                jsonable_encoder(
+                    WebSocketResponse(
+                        status="error",
+                        action=WSActionType.ERROR,
+                        error="User data is missing.",
+                    )
+                )
+            )
+            return
+
         if self.room_user and self.room_id and self.user_id:
             is_ready = message.data.get("is_ready", False) if message.data else False
 
@@ -153,15 +182,17 @@ class RoomWebSocketHandler:
             )
 
             ready_data = UserReadyData(
-                user_id=self.user_id, is_ready=updated_room_user.is_ready
+                user_uid=self.user.uid, is_ready=updated_room_user.is_ready
             )
 
             await room_manager.broadcast(
-                WebSocketResponse(
-                    status="success",
-                    action=WSActionType.USER_READY_CHANGED,
-                    data=ready_data.model_dump(),
-                ).model_dump(),
+                jsonable_encoder(
+                    WebSocketResponse(
+                        status="success",
+                        action=WSActionType.USER_READY_CHANGED,
+                        data=ready_data.model_dump(),
+                    )
+                ),
                 self.room_id,
             )
 
@@ -171,20 +202,19 @@ class RoomWebSocketHandler:
     async def handle_disconnection(self):
         if self.room_id and self.user_id:
             room_manager.disconnect(self.room_id, self.user_id)
-
-            left_data = UserLeftData(user_id=self.user_id)
-
+            left_data = UserLeftData(user_uid=self.user.uid if self.user else "unknown")
             await room_manager.broadcast(
-                WebSocketResponse(
-                    status="success",
-                    action=WSActionType.USER_LEFT,
-                    data=left_data.model_dump(),
-                ).model_dump(),
-                self.room_id,
+                message=jsonable_encoder(
+                    WebSocketResponse(
+                        status="success",
+                        action=WSActionType.USER_LEFT,
+                        data=left_data.model_dump(),
+                    )
+                ),
+                room_id=self.room_id,
             )
 
     async def handle_error(self, e: Exception):
-        print(f"WebSocket error: {e!s}")
         if self.websocket.client_state.CONNECTED:
             await self.websocket.close(
                 code=status.WS_1011_INTERNAL_ERROR, reason=str(e)

@@ -1,7 +1,6 @@
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Any, Literal
-from uuid import UUID
 
 from pydantic import BaseModel, Field
 
@@ -30,22 +29,23 @@ class WebSocketResponse(BaseModel):
     action: str
     data: dict[str, Any] | None = None
     error: str | None = None
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    timestamp: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
 
 
 class UserReadyData(BaseModel):
-    user_id: UUID
+    user_uid: str
     is_ready: bool
 
 
 class UserJoinedData(BaseModel):
-    user_id: UUID
+    user_uid: str
     nickname: str
+    slot_index: int
     is_ready: bool = False
 
 
 class UserLeftData(BaseModel):
-    user_id: UUID
+    user_uid: str
 
 
 class GameStartedData(BaseModel):
