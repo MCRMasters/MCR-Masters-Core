@@ -32,9 +32,13 @@ class Settings(BaseSettings):
     GOOGLE_AUTH_URL: str = "https://accounts.google.com/o/oauth2/v2/auth"
     GOOGLE_TOKEN_URL: str = "https://oauth2.googleapis.com/token"
     GOOGLE_USER_INFO_URL: str = "https://www.googleapis.com/oauth2/v2/userinfo"
-    GOOGLE_REDIRECT_URI: str = "http://localhost:8000/api/v1/auth/login/google/callback"
+    # GOOGLE_REDIRECT_URI: str = "http://localhost:8000/api/v1/auth/login/google/callback"
+    GOOGLE_REDIRECT_URI: str = (
+        "http://mcrs.duckdns.org:8000/api/v1/auth/login/google/callback"
+    )
 
-    GAME_SERVER_URL: str = "http://localhost:8001"
+    # GAME_SERVER_URL: str = "http://localhost:8001"
+    GAME_SERVER_URL: str = "http://mcrs.duckdns.org:8001/"
 
     @property
     def sync_database_uri(self) -> str:
