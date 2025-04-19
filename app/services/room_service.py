@@ -13,7 +13,7 @@ from app.models.user import User
 from app.repositories.room_repository import RoomRepository
 from app.repositories.room_user_repository import RoomUserRepository
 from app.repositories.user_repository import UserRepository
-from app.schemas.room import AvailableRoomResponse, RoomUserResponse
+from app.schemas.room import AvailableRoomResponse, RoomUserResponse, RoomUsersResponse
 
 
 class RoomService:
@@ -132,6 +132,44 @@ class RoomService:
         created_room_user = await self.room_user_repository.create(room_user)
         return created_room_user
 
+    async def leave_room(self, user_id: UUID, room_id: UUID) -> list[RoomUserResponse]:
+        room: Room = await self.room_repository.filter_one_or_raise(id=room_id)
+        room_user: RoomUser = await self.room_user_repository.filter_one_or_raise(
+            user_id=user_id
+        )
+        if room_user.room_id != room.id:
+            raise MCRDomainError(
+                code=DomainErrorCode.USER_NOT_FOUND,
+                message="user not found in room",
+                details={"user_id": str(user_id), "room_id": str(room_id)},
+            )
+
+        await self.room_user_repository.delete(uuid=room_user.id)
+        await self.session.commit()
+
+        remaining = await self.room_user_repository.filter(room_id=room_id)
+
+        if remaining and room.host_id == user_id:
+            new_host_ru = min(remaining, key=lambda ru: ru.slot_index)
+            room.host_id = new_host_ru.user_id
+            await self.room_repository.update(room)
+            await self.session.commit()
+
+        if not remaining:
+            await self.room_repository.delete(room.id)
+            await self.session.commit()
+            return []
+
+        return [
+            RoomUserResponse(
+                nickname=ru.user_nickname,
+                uid=ru.user_uid,
+                is_ready=ru.is_ready,
+                slot_index=ru.slot_index,
+            )
+            for ru in remaining
+        ]
+
     async def get_available_rooms(self) -> list[AvailableRoomResponse]:
         rooms_with_users = await self.room_repository.get_available_rooms_with_users()
         result = []
@@ -204,6 +242,25 @@ class RoomService:
         updated_room_user = await self.room_user_repository.update(room_user)
         await self.session.commit()
         return updated_room_user
+
+    async def get_room_users(self, room_id: UUID) -> RoomUsersResponse:
+        room: Room = await self.room_repository.filter_one_or_raise(id=room_id)
+        room_users = await self.room_user_repository.filter(room_id=room_id)
+
+        users = [
+            RoomUserResponse(
+                nickname=ru.user_nickname,
+                uid=ru.user_uid,
+                is_ready=ru.is_ready,
+                slot_index=ru.slot_index,
+            )
+            for ru in room_users
+        ]
+
+        return RoomUsersResponse(
+            host_uid=str(room.host_id),
+            users=users,
+        )
 
     async def end_game(self, room_id: UUID) -> Room:
         room = await self.room_repository.filter_one_or_raise(id=room_id)
