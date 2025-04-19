@@ -13,6 +13,7 @@ from app.models.user import User
 from app.schemas.ws import (
     UserJoinedData,
     UserLeftData,
+    UserListData,
     UserReadyData,
     WebSocketMessage,
     WebSocketResponse,
@@ -197,22 +198,65 @@ class RoomWebSocketHandler:
             )
 
     async def handle_leave(self, _: WebSocketMessage):
-        raise WebSocketDisconnect()
+        if self.user_id is None or self.room_id is None or self.user is None:
+            await self.websocket.close(code=status.WS_1000_NORMAL_CLOSURE)
+            return
+
+        new_list = await self.room_service.leave_room(self.user_id, self.room_id)
+
+        if not new_list:
+            await self.websocket.close(code=status.WS_1000_NORMAL_CLOSURE)
+            return
+
+        # 유저 나감 이벤트 브로드캐스트
+        left_data = UserLeftData(user_uid=self.user.uid)
+        await room_manager.broadcast(
+            WebSocketResponse(
+                status="success",
+                action=WSActionType.USER_LEFT,
+                data=left_data.model_dump(),
+            ).model_dump(),
+            self.room_id,
+        )
+
+        user_list_data = UserListData(users=[u.model_dump() for u in new_list])
+        await room_manager.broadcast(
+            WebSocketResponse(
+                status="success",
+                action=WSActionType.USER_LIST,
+                data=user_list_data.model_dump(),
+            ).model_dump(),
+            self.room_id,
+        )
+
+        await self.websocket.close(code=status.WS_1000_NORMAL_CLOSURE)
 
     async def handle_disconnection(self):
-        if self.room_id and self.user_id:
-            room_manager.disconnect(self.room_id, self.user_id)
-            left_data = UserLeftData(user_uid=self.user.uid if self.user else "unknown")
-            await room_manager.broadcast(
-                message=jsonable_encoder(
-                    WebSocketResponse(
-                        status="success",
-                        action=WSActionType.USER_LEFT,
-                        data=left_data.model_dump(),
-                    )
-                ),
-                room_id=self.room_id,
-            )
+        if not (self.room_id and self.user_id):
+            return
+        new_list = await self.room_service.leave_room(self.user_id, self.room_id)
+
+        if not new_list:
+            return
+
+        left_data = UserLeftData(user_uid=self.user.uid)
+        await room_manager.broadcast(
+            WebSocketResponse(
+                status="success",
+                action=WSActionType.USER_LEFT,
+                data=left_data.model_dump(),
+            ).model_dump(),
+            self.room_id,
+        )
+        user_list_data = UserListData(users=[u.model_dump() for u in new_list])
+        await room_manager.broadcast(
+            WebSocketResponse(
+                status="success",
+                action=WSActionType.USER_LIST,
+                data=user_list_data.model_dump(),
+            ).model_dump(),
+            self.room_id,
+        )
 
     async def handle_error(self, e: Exception):
         if self.websocket.client_state.CONNECTED:

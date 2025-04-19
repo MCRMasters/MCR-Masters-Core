@@ -8,7 +8,11 @@ from app.models.room import Room
 from app.models.room_user import RoomUser
 from app.models.user import User
 from app.schemas.common import BaseResponse
-from app.schemas.room import AvailableRoomResponse, RoomResponse
+from app.schemas.room import (
+    AvailableRoomResponse,
+    RoomResponse,
+    RoomUsersResponse,
+)
 from app.services.room_service import RoomService
 
 router = APIRouter()
@@ -62,6 +66,18 @@ async def get_available_rooms(
     return await room_service.get_available_rooms()
 
 
+@router.get(
+    "/{room_number}/users",
+    response_model=RoomUsersResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def read_room_users(
+    room: Room = Depends(get_room_by_number),
+    room_service: RoomService = Depends(get_room_service),
+):
+    return await room_service.get_room_users(room.id)
+
+
 @router.post(
     "/{room_number}/game-start",
     response_model=BaseResponse,
@@ -85,3 +101,17 @@ async def start_game(
 
     await room_service.start_game(room.id)
     return BaseResponse(message="Game started successfully")
+
+
+@router.post(
+    "/{room_number}/leave",
+    response_model=BaseResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def leave_room(
+    room: Room = Depends(get_room_by_number),
+    current_user: User = Depends(get_current_user),
+    room_service: RoomService = Depends(get_room_service),
+):
+    await room_service.leave_room(current_user.id, room.id)
+    return BaseResponse(message="Left room successfully")

@@ -22,3 +22,8 @@ class AvailableRoomResponse(BaseModel):
     host_uid: str
     host_nickname: str
     users: list[RoomUserResponse]
+
+
+class RoomUsersResponse(BaseModel):
+    host_uid: str
+    users: list[RoomUserResponse]

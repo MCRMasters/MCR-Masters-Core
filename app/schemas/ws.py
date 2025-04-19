@@ -4,6 +4,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from app.schemas.room import RoomUserResponse
+
 
 class WSActionType(str, Enum):
     PING = "ping"
@@ -17,6 +19,7 @@ class WSActionType(str, Enum):
     USER_READY_CHANGED = "user_ready_changed"
     GAME_STARTED = "game_started"
     ERROR = "error"
+    USER_LIST = "user_list"
 
 
 class WebSocketMessage(BaseModel):
@@ -50,3 +53,7 @@ class UserLeftData(BaseModel):
 
 class GameStartedData(BaseModel):
     game_url: str
+
+
+class UserListData(BaseModel):
+    users: list[RoomUserResponse]
