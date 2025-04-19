@@ -208,7 +208,6 @@ class RoomWebSocketHandler:
             await self.websocket.close(code=status.WS_1000_NORMAL_CLOSURE)
             return
 
-        # 유저 나감 이벤트 브로드캐스트
         left_data = UserLeftData(user_uid=self.user.uid)
         await room_manager.broadcast(
             WebSocketResponse(
