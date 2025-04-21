@@ -246,6 +246,7 @@ class RoomService:
     async def get_room_users(self, room_id: UUID) -> RoomUsersResponse:
         room: Room = await self.room_repository.filter_one_or_raise(id=room_id)
         room_users = await self.room_user_repository.filter(room_id=room_id)
+        host_user = await self.user_repository.filter_one_or_raise(id=room.host_id)
 
         users = [
             RoomUserResponse(
@@ -258,7 +259,7 @@ class RoomService:
         ]
 
         return RoomUsersResponse(
-            host_uid=str(room.host_id),
+            host_uid=host_user.uid,
             users=users,
         )
 
