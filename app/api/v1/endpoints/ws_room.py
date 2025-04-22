@@ -39,7 +39,7 @@ class RoomWebSocketHandler:
     async def handle_connection(self):
         result = True
         try:
-            token = self.websocket.headers.get("authorization")
+            token = self.websocket.query_params.get("authorization")
             if not token:
                 await self.websocket.close(code=status.WS_1008_POLICY_VIOLATION)
                 result = False
