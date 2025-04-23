@@ -1,10 +1,10 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import HTMLResponse
 
 from app.dependencies.services import get_google_oauth_service
 from app.schemas.auth.base import AuthUrlResponse, TokenResponse
-from app.schemas.common import BaseResponse
 from app.services.auth.google import GoogleOAuthService
 
 router = APIRouter()
@@ -21,7 +21,10 @@ async def google_login(
     return AuthUrlResponse(auth_url=auth_url, session_id=session_id)
 
 
-@router.get("/login/google/callback", response_model=BaseResponse)
+@router.get(
+    "/login/google/callback",
+    response_class=HTMLResponse,
+)
 async def google_callback(
     code: str,
     state: str,
@@ -29,7 +32,14 @@ async def google_callback(
 ):
     token_response: TokenResponse = await google_service.process_google_login(code)
     session_tokens[state] = token_response
-    return BaseResponse(message="Login completed. Please go back to game.")
+
+    return HTMLResponse(
+        """
+        <html><head><script>
+            window.close();
+        </script></head><body></body></html>
+        """
+    )
 
 
 @router.get("/login/status", response_model=TokenResponse)
