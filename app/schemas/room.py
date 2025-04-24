@@ -9,7 +9,7 @@ class RoomResponse(BaseModel):
 
 class RoomUserResponse(BaseModel):
     nickname: str
-    uid: str
+    user_uid: str
     is_ready: bool
     slot_index: int
 
