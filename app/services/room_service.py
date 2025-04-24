@@ -134,10 +134,22 @@ class RoomService:
 
     async def leave_room(self, user_id: UUID, room_id: UUID) -> list[RoomUserResponse]:
         room = await self.room_repository.filter_one_or_raise(id=room_id)
-        room_user = await self.room_user_repository.filter_one_or_raise(
+
+        room_user = await self.room_user_repository.filter_one(
             user_id=user_id,
             room_id=room_id,
         )
+        if room_user is None:
+            remaining = await self.room_user_repository.filter(room_id=room_id)
+            return [
+                RoomUserResponse(
+                    nickname=ru.user_nickname,
+                    user_uid=ru.user_uid,
+                    is_ready=ru.is_ready,
+                    slot_index=ru.slot_index,
+                )
+                for ru in remaining
+            ]
 
         await self.room_user_repository.delete(uuid=room_user.id)
 
@@ -145,9 +157,10 @@ class RoomService:
 
         if remaining:
             if room.host_id == user_id:
-                new_host_ru = min(remaining, key=lambda ru: ru.slot_index)
-                room.host_id = new_host_ru.user_id
+                new_host = min(remaining, key=lambda ru: ru.slot_index)
+                room.host_id = new_host.user_id
                 await self.room_repository.update(room)
+
             responses = [
                 RoomUserResponse(
                     nickname=ru.user_nickname,
