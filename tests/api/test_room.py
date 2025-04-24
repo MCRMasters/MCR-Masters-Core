@@ -177,10 +177,13 @@ async def test_get_available_rooms_success(login_client, mock_user):
             host_uid="HostUserUid",
             users=[
                 RoomUserResponse(
-                    uid="HostUserUid", nickname="HostUser", is_ready=True, slot_index=0
+                    user_uid="HostUserUid",
+                    nickname="HostUser",
+                    is_ready=True,
+                    slot_index=0,
                 ),
                 RoomUserResponse(
-                    uid="GuestUserUid",
+                    user_uid="GuestUserUid",
                     nickname="GuestUser",
                     is_ready=False,
                     slot_index=1,
@@ -196,7 +199,7 @@ async def test_get_available_rooms_success(login_client, mock_user):
             host_uid="AnotherHostUid",
             users=[
                 RoomUserResponse(
-                    uid="AnotherHostUid",
+                    user_uid="AnotherHostUid",
                     nickname="AnotherHost",
                     is_ready=False,
                     slot_index=0,

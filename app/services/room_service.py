@@ -163,7 +163,7 @@ class RoomService:
         return [
             RoomUserResponse(
                 nickname=ru.user_nickname,
-                uid=ru.user_uid,
+                user_uid=ru.user_uid,
                 is_ready=ru.is_ready,
                 slot_index=ru.slot_index,
             )
@@ -185,7 +185,7 @@ class RoomService:
                 users.append(
                     RoomUserResponse(
                         nickname=user.nickname,
-                        uid=user.uid,
+                        user_uid=user.uid,
                         is_ready=room_user.is_ready,
                         slot_index=room_user.slot_index,
                     )
@@ -251,7 +251,7 @@ class RoomService:
         users = [
             RoomUserResponse(
                 nickname=ru.user_nickname,
-                uid=ru.user_uid,
+                user_uid=ru.user_uid,
                 is_ready=ru.is_ready,
                 slot_index=ru.slot_index,
             )
