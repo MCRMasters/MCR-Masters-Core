@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime
 from uuid import UUID, uuid4
 
@@ -5,6 +7,7 @@ from pydantic import field_validator
 from sqlalchemy import Column, DateTime
 from sqlmodel import Field, SQLModel
 
+from app.models.character import Character
 from app.models.time_stamp_mixin import TimeStampMixin
 from app.util.validators import validate_nickname, validate_uid
 
@@ -24,6 +27,14 @@ class User(TimeStampMixin, SQLModel, table=True):  # type: ignore[call-arg]
     )
 
     email: str | None = Field(default=None)
+
+    character_code: str = Field(
+        default=Character.DEFAULT_CHARACTER_CODE,
+        foreign_key="character.code",
+        max_length=10,
+        index=True,
+        nullable=False,
+    )
 
     @field_validator("uid")
     @classmethod

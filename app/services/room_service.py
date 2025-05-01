@@ -13,6 +13,7 @@ from app.models.user import User
 from app.repositories.room_repository import RoomRepository
 from app.repositories.room_user_repository import RoomUserRepository
 from app.repositories.user_repository import UserRepository
+from app.schemas.character import CharacterResponse
 from app.schemas.room import AvailableRoomResponse, RoomUserResponse, RoomUsersResponse
 
 
@@ -127,6 +128,7 @@ class RoomService:
             user_nickname=user.nickname,
             slot_index=slot_index,
             is_ready=False,
+            character_code=user.character_code,
         )
 
         created_room_user = await self.room_user_repository.create(room_user)
@@ -166,6 +168,9 @@ class RoomService:
                 user_uid=ru.user_uid,
                 is_ready=ru.is_ready,
                 slot_index=ru.slot_index,
+                current_character=(
+                    CharacterResponse(code=ru.character.code, name=ru.character.name)
+                ),
             )
             for ru in remaining
         ]
@@ -188,6 +193,12 @@ class RoomService:
                         user_uid=user.uid,
                         is_ready=room_user.is_ready,
                         slot_index=room_user.slot_index,
+                        current_character=(
+                            CharacterResponse(
+                                code=room_user.character.code,
+                                name=room_user.character.name,
+                            )
+                        ),
                     )
                 )
 
@@ -254,6 +265,9 @@ class RoomService:
                 user_uid=ru.user_uid,
                 is_ready=ru.is_ready,
                 slot_index=ru.slot_index,
+                current_character=(
+                    CharacterResponse(code=ru.character.code, name=ru.character.name)
+                ),
             )
             for ru in room_users
         ]

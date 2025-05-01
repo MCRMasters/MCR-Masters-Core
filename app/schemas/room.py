@@ -1,5 +1,7 @@
 from pydantic import BaseModel
 
+from app.schemas.character import CharacterResponse
+
 
 class RoomResponse(BaseModel):
     name: str
@@ -12,6 +14,7 @@ class RoomUserResponse(BaseModel):
     user_uid: str
     is_ready: bool
     slot_index: int
+    current_character: CharacterResponse
 
 
 class AvailableRoomResponse(BaseModel):

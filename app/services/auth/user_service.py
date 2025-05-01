@@ -5,7 +5,11 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.error import DomainErrorCode, MCRDomainError
+from app.models.character import Character
 from app.models.user import User
+from app.models.user_character import UserCharacter
+from app.repositories.character_repository import CharacterRepository
+from app.repositories.user_character_repository import UserCharacterRepository
 from app.repositories.user_repository import UserRepository
 from app.util.validators import validate_uid
 
@@ -15,9 +19,15 @@ class UserService:
         self,
         session: AsyncSession,
         user_repository: UserRepository | None = None,
+        character_repository: CharacterRepository | None = None,
+        user_character_repository: UserCharacterRepository | None = None,
     ):
         self.session = session
         self.user_repository = user_repository or UserRepository(session)
+        self.character_repository = character_repository or CharacterRepository(session)
+        self.user_character_repository = (
+            user_character_repository or UserCharacterRepository(session)
+        )
 
     async def generate_unique_uid(self, max_attempts: int = 10) -> str:
         for _ in range(max_attempts):
@@ -46,6 +56,11 @@ class UserService:
                 nickname="",
             )
             created_user = await self.user_repository.create(new_user)
+            default_uc = UserCharacter(
+                user_id=created_user.id,
+                character_id=Character.DEFAULT_CHARACTER_CODE,
+            )
+            self.session.add(default_uc)
             await self.session.commit()
             return created_user, True
 
@@ -77,6 +92,49 @@ class UserService:
         updated_user = await self.user_repository.update(user)
         await self.session.commit()
         return updated_user
+
+    async def toggle_owned_character(self, user_id: UUID, character_code: str) -> bool:
+        await self.character_repository.get_by_code_or_raise(code=character_code)
+
+        existing = await self.user_character_repository.get(
+            user_id=user_id, character_code=character_code
+        )
+
+        if existing:
+            await self.user_character_repository.remove(
+                user_id=user_id, character_code=character_code
+            )
+            await self.session.commit()
+            return False
+
+        uc = UserCharacter(user_id=user_id, character_code=character_code)
+        await self.user_character_repository.create(uc)
+        await self.session.commit()
+        return True
+
+    async def set_current_character(self, user_id: UUID, character_code: str) -> User:
+        character = await self.character_repository.get_by_code_or_raise(character_code)
+
+        user = await self.user_repository.get_by_uuid(user_id)
+        if not user:
+            raise MCRDomainError(
+                code=DomainErrorCode.USER_NOT_FOUND,
+                message=f"User {user_id} not found",
+                details={"user_id": str(user_id)},
+            )
+
+        owned_codes = {c.code for c in user.owned_characters}
+        if character_code not in owned_codes:
+            raise MCRDomainError(
+                code=DomainErrorCode.CHARACTER_NOT_OWNED,
+                message=f"User does not own character {character_code}",
+                details={"character_code": character_code},
+            )
+
+        user.character_code = character.code
+        updated = await self.user_repository.update(user)
+        await self.session.commit()
+        return updated
 
     async def get_user_by_id(self, user_id: UUID) -> User | None:
         return await self.user_repository.filter_one(id=user_id)
