@@ -5,6 +5,7 @@ import pytest
 from app.core.error import DomainErrorCode, MCRDomainError
 from app.models.user import User
 
+# TODO
 pytestmark = pytest.mark.skip(reason="모든 테스트 스킵")
 
 

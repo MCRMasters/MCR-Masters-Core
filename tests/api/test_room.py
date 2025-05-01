@@ -142,6 +142,7 @@ async def test_join_room_is_full(login_client, mock_user):
     assert data["error_details"]["room_number"] == room_number
 
 
+# TODO
 pytestmark = pytest.mark.skip(reason="모든 테스트 스킵")
 
 

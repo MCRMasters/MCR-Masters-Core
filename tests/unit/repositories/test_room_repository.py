@@ -7,6 +7,7 @@ from app.models.room_user import RoomUser
 from app.models.user import User
 from app.repositories.room_repository import RoomRepository
 
+# TODO
 pytestmark = pytest.mark.skip(reason="모든 테스트 스킵")
 
 
