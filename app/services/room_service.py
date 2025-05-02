@@ -236,7 +236,23 @@ class RoomService:
                 },
             )
 
-        return user, room, room_user
+        room_user_with_character = (
+            await self.room_user_repository.filter_one_with_options(
+                user_id=user_id,
+                load_options=[selectinload(RoomUser.character)],
+            )
+        )
+
+        if not room_user_with_character:
+            raise MCRDomainError(
+                code=DomainErrorCode.USER_NOT_FOUND,
+                message="User not found",
+                details={
+                    "user_id": str(user_id),
+                },
+            )
+
+        return user, room, room_user_with_character
 
     async def update_user_ready_status(
         self, user_id: UUID, room_id: UUID, is_ready: bool

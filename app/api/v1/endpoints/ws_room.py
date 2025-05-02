@@ -10,6 +10,7 @@ from app.core.security import get_user_id_from_token
 from app.dependencies.services import get_room_service
 from app.models.room_user import RoomUser
 from app.models.user import User
+from app.schemas.character import CharacterResponse
 from app.schemas.ws import (
     UserJoinedData,
     UserLeftData,
@@ -82,6 +83,10 @@ class RoomWebSocketHandler:
                             nickname=self.user.nickname,
                             is_ready=self.room_user.is_ready,
                             slot_index=self.room_user.slot_index,
+                            current_character=CharacterResponse(
+                                code=self.room_user.character.code,
+                                name=self.room_user.character.name,
+                            ),
                         )
 
                         await room_manager.broadcast(

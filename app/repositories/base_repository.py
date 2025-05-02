@@ -109,6 +109,16 @@ class BaseRepository(Generic[T], ABC):
             )
         return result
 
+    async def filter_one_with_options(
+        self,
+        *filters: BinaryExpression,
+        load_options: list[Any] = [],
+        **kwargs: Any,
+    ) -> T | None:
+        query = self._build_query(*filters, **kwargs).options(*load_options).limit(1)
+        result = await self.session.execute(query)
+        return cast(T | None, result.scalar_one_or_none())
+
     async def filter_with_options(
         self,
         *filters: BinaryExpression,

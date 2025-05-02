@@ -4,6 +4,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from app.schemas.character import CharacterResponse
 from app.schemas.room import RoomUserResponse
 
 
@@ -44,6 +45,7 @@ class UserJoinedData(BaseModel):
     user_uid: str
     nickname: str
     slot_index: int
+    current_character: CharacterResponse
     is_ready: bool = False
 
 
