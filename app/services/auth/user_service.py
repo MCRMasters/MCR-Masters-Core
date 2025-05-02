@@ -59,7 +59,7 @@ class UserService:
             created_user = await self.user_repository.create(new_user)
             default_uc = UserCharacter(
                 user_id=created_user.id,
-                character_id=Character.DEFAULT_CHARACTER_CODE,
+                character_code=Character.DEFAULT_CHARACTER_CODE,
             )
             self.session.add(default_uc)
             await self.session.commit()
