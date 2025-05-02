@@ -3,6 +3,7 @@ from uuid import UUID
 
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.core.error import DomainErrorCode, MCRDomainError
@@ -13,6 +14,7 @@ from app.models.user import User
 from app.repositories.room_repository import RoomRepository
 from app.repositories.room_user_repository import RoomUserRepository
 from app.repositories.user_repository import UserRepository
+from app.schemas.character import CharacterResponse
 from app.schemas.room import AvailableRoomResponse, RoomUserResponse, RoomUsersResponse
 
 
@@ -127,6 +129,7 @@ class RoomService:
             user_nickname=user.nickname,
             slot_index=slot_index,
             is_ready=False,
+            character_code=user.character_code,
         )
 
         created_room_user = await self.room_user_repository.create(room_user)
@@ -147,7 +150,10 @@ class RoomService:
         await self.room_user_repository.delete(uuid=room_user.id)
         await self.session.commit()
 
-        remaining = await self.room_user_repository.filter(room_id=room_id)
+        remaining = await self.room_user_repository.filter_with_options(
+            room_id=room_id,
+            load_options=[selectinload(RoomUser.character)],
+        )
 
         if remaining and room.host_id == user_id:
             new_host_ru = min(remaining, key=lambda ru: ru.slot_index)
@@ -166,6 +172,9 @@ class RoomService:
                 user_uid=ru.user_uid,
                 is_ready=ru.is_ready,
                 slot_index=ru.slot_index,
+                current_character=(
+                    CharacterResponse(code=ru.character.code, name=ru.character.name)
+                ),
             )
             for ru in remaining
         ]
@@ -173,23 +182,28 @@ class RoomService:
     async def get_available_rooms(self) -> list[AvailableRoomResponse]:
         rooms_with_users = await self.room_repository.get_available_rooms_with_users()
         result = []
-        for room, room_users in rooms_with_users:
-            host_user = await self.user_repository.filter_one_or_raise(id=room.host_id)
-            host_nickname = host_user.nickname
 
-            users = []
-            for room_user in room_users:
-                user = await self.user_repository.filter_one_or_raise(
-                    id=room_user.user_id
+        for room, _ in rooms_with_users:
+            room_users = await self.room_user_repository.filter_with_options(
+                room_id=room.id,
+                load_options=[selectinload(RoomUser.character)],
+            )
+
+            host_user = await self.user_repository.filter_one_or_raise(id=room.host_id)
+
+            users = [
+                RoomUserResponse(
+                    nickname=ru.user_nickname,
+                    user_uid=ru.user_uid,
+                    is_ready=ru.is_ready,
+                    slot_index=ru.slot_index,
+                    current_character=CharacterResponse(
+                        code=ru.character.code,
+                        name=ru.character.name,
+                    ),
                 )
-                users.append(
-                    RoomUserResponse(
-                        nickname=user.nickname,
-                        user_uid=user.uid,
-                        is_ready=room_user.is_ready,
-                        slot_index=room_user.slot_index,
-                    )
-                )
+                for ru in room_users
+            ]
 
             room_data = AvailableRoomResponse(
                 name=room.name,
@@ -197,7 +211,7 @@ class RoomService:
                 max_users=room.max_users,
                 current_users=len(room_users),
                 host_uid=host_user.uid,
-                host_nickname=host_nickname,
+                host_nickname=host_user.nickname,
                 users=users,
             )
             result.append(room_data)
@@ -208,10 +222,12 @@ class RoomService:
         self, user_id: UUID, room_number: int
     ) -> tuple[User, Room, RoomUser]:
         user = await self.user_repository.filter_one_or_raise(id=user_id)
-
         room = await self.room_repository.filter_one_or_raise(room_number=room_number)
 
-        room_user = await self.room_user_repository.filter_one(user_id=user_id)
+        room_user = await self.room_user_repository.filter_one_with_options(
+            user_id=user_id,
+            load_options=[selectinload(RoomUser.character)],
+        )
         if not room_user or room_user.room_id != room.id:
             raise MCRDomainError(
                 code=DomainErrorCode.USER_ALREADY_IN_ROOM,
@@ -245,7 +261,11 @@ class RoomService:
 
     async def get_room_users(self, room_id: UUID) -> RoomUsersResponse:
         room: Room = await self.room_repository.filter_one_or_raise(id=room_id)
-        room_users = await self.room_user_repository.filter(room_id=room_id)
+        room_users = await self.room_user_repository.filter_with_options(
+            room_id=room_id,
+            load_options=[selectinload(RoomUser.character)],
+        )
+
         host_user = await self.user_repository.filter_one_or_raise(id=room.host_id)
 
         users = [
@@ -254,6 +274,9 @@ class RoomService:
                 user_uid=ru.user_uid,
                 is_ready=ru.is_ready,
                 slot_index=ru.slot_index,
+                current_character=(
+                    CharacterResponse(code=ru.character.code, name=ru.character.name)
+                ),
             )
             for ru in room_users
         ]
@@ -276,7 +299,10 @@ class RoomService:
         room.is_playing = False
         updated_room = await self.room_repository.update(room)
 
-        room_users = await self.room_user_repository.filter(room_id=room_id)
+        room_users = await self.room_user_repository.filter_with_options(
+            room_id=room_id,
+            load_options=[selectinload(RoomUser.character)],
+        )
 
         for room_user in room_users:
             if room_user.user_id != room.host_id:

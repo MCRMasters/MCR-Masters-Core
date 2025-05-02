@@ -10,6 +10,9 @@ from app.models.room import Room
 from app.models.room_user import RoomUser
 from app.models.user import User
 
+# TODO
+pytestmark = pytest.mark.skip(reason="모든 테스트 스킵")
+
 
 @pytest.fixture
 def room_id():

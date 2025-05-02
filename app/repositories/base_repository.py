@@ -29,6 +29,17 @@ class BaseRepository(Generic[T], ABC):
         )
         return cast(T | None, result.scalar_one_or_none())
 
+    async def get_by_uuid_with_options(
+        self, uuid: UUID, *load_options: Any
+    ) -> T | None:
+        stmt: Select = (
+            select(self.model_class)
+            .options(*load_options)
+            .where(self.model_class.id == uuid)
+        )
+        result = await self.session.execute(stmt)
+        return cast(T | None, result.scalar_one_or_none())
+
     async def create(self, entity: T) -> T:
         self.session.add(entity)
         await self.session.flush()
@@ -97,6 +108,34 @@ class BaseRepository(Generic[T], ABC):
                 },
             )
         return result
+
+    async def filter_one_with_options(
+        self,
+        *filters: BinaryExpression,
+        load_options: list[Any] = [],
+        **kwargs: Any,
+    ) -> T | None:
+        query = self._build_query(*filters, **kwargs).options(*load_options).limit(1)
+        result = await self.session.execute(query)
+        return cast(T | None, result.scalar_one_or_none())
+
+    async def filter_with_options(
+        self,
+        *filters: BinaryExpression,
+        load_options: list[Any] = [],
+        offset: int | None = None,
+        limit: int | None = None,
+        **kwargs: Any,
+    ) -> list[T]:
+        query = self._build_query(*filters, **kwargs).options(*load_options)
+
+        if offset is not None:
+            query = query.offset(offset)
+        if limit is not None:
+            query = query.limit(limit)
+
+        result = await self.session.execute(query)
+        return list(result.scalars().all())
 
     async def count(self, *filters: BinaryExpression, **kwargs: Any) -> int:
         query = select(func.count()).select_from(self.model_class)

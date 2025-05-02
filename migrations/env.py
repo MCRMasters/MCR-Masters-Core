@@ -9,6 +9,8 @@ from app.core.config import settings
 from app.models.user import User
 from app.models.room import Room
 from app.models.room_user import RoomUser
+from app.models.character import Character
+from app.models.user_character import UserCharacter
 from app.models.relations import *
 
 # this is the Alembic Config object, which provides
