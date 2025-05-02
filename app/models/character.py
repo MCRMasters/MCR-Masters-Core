@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing import TYPE_CHECKING, ClassVar
 from uuid import UUID, uuid4
 
@@ -26,7 +24,7 @@ class Character(TimeStampMixin, SQLModel, table=True):  # type: ignore[call-arg]
         index=True,
     )
     name: str
-    owners: list[User] = Relationship(
+    owners: list["User"] = Relationship(
         back_populates="owned_characters",
         link_model=UserCharacter,
     )
