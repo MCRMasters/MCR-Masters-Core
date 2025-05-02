@@ -222,10 +222,12 @@ class RoomService:
         self, user_id: UUID, room_number: int
     ) -> tuple[User, Room, RoomUser]:
         user = await self.user_repository.filter_one_or_raise(id=user_id)
-
         room = await self.room_repository.filter_one_or_raise(room_number=room_number)
 
-        room_user = await self.room_user_repository.filter_one(user_id=user_id)
+        room_user = await self.room_user_repository.filter_one_with_options(
+            user_id=user_id,
+            load_options=[selectinload(RoomUser.character)],
+        )
         if not room_user or room_user.room_id != room.id:
             raise MCRDomainError(
                 code=DomainErrorCode.USER_ALREADY_IN_ROOM,
@@ -236,23 +238,7 @@ class RoomService:
                 },
             )
 
-        room_user_with_character = (
-            await self.room_user_repository.filter_one_with_options(
-                user_id=user_id,
-                load_options=[selectinload(RoomUser.character)],
-            )
-        )
-
-        if not room_user_with_character:
-            raise MCRDomainError(
-                code=DomainErrorCode.USER_NOT_FOUND,
-                message="User not found",
-                details={
-                    "user_id": str(user_id),
-                },
-            )
-
-        return user, room, room_user_with_character
+        return user, room, room_user
 
     async def update_user_ready_status(
         self, user_id: UUID, room_id: UUID, is_ready: bool
