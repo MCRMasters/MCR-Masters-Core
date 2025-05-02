@@ -27,8 +27,6 @@ class RoomUser(TimeStampMixin, SQLModel, table=True):  # type: ignore[call-arg]
         nullable=False,
     )
 
-    character: Character = Relationship(
-        sa_relationship_kwargs={"foreign_keys": [character_code]}
-    )
+    character: Character = Relationship()
 
     __table_args__ = (UniqueConstraint("user_id"),)

@@ -37,9 +37,7 @@ class User(TimeStampMixin, SQLModel, table=True):  # type: ignore[call-arg]
         nullable=False,
     )
 
-    character: Character = Relationship(
-        sa_relationship_kwargs={"foreign_keys": [character_code]}
-    )
+    character: Character = Relationship()
 
     owned_characters: list[Character] = Relationship(link_model=UserCharacter)
 
