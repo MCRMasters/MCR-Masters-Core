@@ -109,6 +109,24 @@ class BaseRepository(Generic[T], ABC):
             )
         return result
 
+    async def filter_with_options(
+        self,
+        *filters: BinaryExpression,
+        load_options: list[Any] = [],
+        offset: int | None = None,
+        limit: int | None = None,
+        **kwargs: Any,
+    ) -> list[T]:
+        query = self._build_query(*filters, **kwargs).options(*load_options)
+
+        if offset is not None:
+            query = query.offset(offset)
+        if limit is not None:
+            query = query.limit(limit)
+
+        result = await self.session.execute(query)
+        return list(result.scalars().all())
+
     async def count(self, *filters: BinaryExpression, **kwargs: Any) -> int:
         query = select(func.count()).select_from(self.model_class)
 
