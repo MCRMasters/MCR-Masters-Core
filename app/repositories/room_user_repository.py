@@ -1,4 +1,3 @@
-from typing import Any
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,9 +24,3 @@ class RoomUserRepository(BaseRepository[RoomUser]):
                 details={"uuid": str(room_user_id)},
             )
         return room_user
-
-    async def filter_with_character(self, **kwargs: Any) -> list[RoomUser]:
-        return await self.filter_with_options(
-            load_options=[selectinload(RoomUser.character)],
-            **kwargs,
-        )
