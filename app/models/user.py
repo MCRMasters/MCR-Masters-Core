@@ -39,7 +39,9 @@ class User(TimeStampMixin, SQLModel, table=True):  # type: ignore[call-arg]
 
     character: Character = Relationship()
 
-    owned_characters: list[Character] = Relationship(link_model=UserCharacter)
+    owned_characters: list[Character] = Relationship(
+        back_populates="owners", link_model=UserCharacter
+    )
 
     @field_validator("uid")
     @classmethod
