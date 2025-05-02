@@ -3,6 +3,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.error import DomainErrorCode, MCRDomainError
 from app.models.character import Character
@@ -138,3 +139,12 @@ class UserService:
 
     async def get_user_by_id(self, user_id: UUID) -> User | None:
         return await self.user_repository.filter_one(id=user_id)
+
+    async def get_user_by_id_with_character_and_owned(
+        self, user_id: UUID
+    ) -> User | None:
+        return await self.user_repository.get_by_uuid_with_options(
+            user_id,
+            selectinload(User.character),
+            selectinload(User.owned_characters),
+        )

@@ -29,6 +29,17 @@ class BaseRepository(Generic[T], ABC):
         )
         return cast(T | None, result.scalar_one_or_none())
 
+    async def get_by_uuid_with_options(
+        self, uuid: UUID, *load_options: Any
+    ) -> T | None:
+        stmt: Select = (
+            select(self.model_class)
+            .options(*load_options)
+            .where(self.model_class.id == uuid)
+        )
+        result = await self.session.execute(stmt)
+        return cast(T | None, result.scalar_one_or_none())
+
     async def create(self, entity: T) -> T:
         self.session.add(entity)
         await self.session.flush()

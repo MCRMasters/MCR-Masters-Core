@@ -30,7 +30,7 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    user = await user_service.get_user_by_id(user_id)
+    user = await user_service.get_user_by_id_with_character_and_owned(user_id)
 
     if not user:
         raise HTTPException(
