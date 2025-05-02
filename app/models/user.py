@@ -5,10 +5,11 @@ from uuid import UUID, uuid4
 
 from pydantic import field_validator
 from sqlalchemy import Column, DateTime
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.character import Character
 from app.models.time_stamp_mixin import TimeStampMixin
+from app.models.user_character import UserCharacter
 from app.util.validators import validate_nickname, validate_uid
 
 
@@ -35,6 +36,12 @@ class User(TimeStampMixin, SQLModel, table=True):  # type: ignore[call-arg]
         index=True,
         nullable=False,
     )
+
+    character: Character = Relationship(
+        sa_relationship_kwargs={"foreign_keys": [character_code]}
+    )
+
+    owned_characters: list[Character] = Relationship(link_model=UserCharacter)
 
     @field_validator("uid")
     @classmethod
