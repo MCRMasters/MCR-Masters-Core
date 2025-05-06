@@ -46,7 +46,16 @@ async def join_room(
     current_user: User = Depends(get_current_user),
     room_service: RoomService = Depends(get_room_service),
 ):
+    existing_ru = await room_service.room_user_repository.filter_one(
+        user_id=current_user.id
+    )
+    if existing_ru:
+        await room_service.leave_room(
+            user_id=current_user.id, room_id=existing_ru.room_id
+        )
+
     room_user: RoomUser = await room_service.join_room(current_user.id, room.id)
+
     return RoomResponse(
         name=room.name,
         room_number=room.room_number,
