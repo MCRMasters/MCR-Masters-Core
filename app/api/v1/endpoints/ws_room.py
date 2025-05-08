@@ -210,6 +210,7 @@ class RoomWebSocketHandler:
         new_list = await self.room_service.leave_room(self.user_id, self.room_id)
 
         if not new_list:
+            room_manager.disconnect(room_id=self.room_id, user_id=self.user_id)
             await self.websocket.close(code=status.WS_1000_NORMAL_CLOSURE)
             return
 
@@ -233,36 +234,40 @@ class RoomWebSocketHandler:
             self.room_id,
         )
 
+        room_manager.disconnect(room_id=self.room_id, user_id=self.user_id)
         await self.websocket.close(code=status.WS_1000_NORMAL_CLOSURE)
 
     async def handle_disconnection(self):
         if not (self.room_id and self.user_id):
             return
-        new_list = await self.room_service.leave_room(self.user_id, self.room_id)
-
-        if not new_list:
-            return
-
-        left_data = UserLeftData(user_uid=self.user.uid)
-        await room_manager.broadcast(
-            WebSocketResponse(
-                status="success",
-                action=WSActionType.USER_LEFT,
-                data=left_data.model_dump(),
-            ).model_dump(),
-            self.room_id,
-        )
-        user_list_data = UserListData(users=[u.model_dump() for u in new_list])
-        await room_manager.broadcast(
-            WebSocketResponse(
-                status="success",
-                action=WSActionType.USER_LIST,
-                data=user_list_data.model_dump(),
-            ).model_dump(),
-            self.room_id,
-        )
+        try:
+            new_list = await self.room_service.leave_room(self.user_id, self.room_id)
+        except MCRDomainError:
+            new_list = []
+        if new_list:
+            left_data = UserLeftData(user_uid=self.user.uid)
+            await room_manager.broadcast(
+                WebSocketResponse(
+                    status="success",
+                    action=WSActionType.USER_LEFT,
+                    data=left_data.model_dump(),
+                ).model_dump(),
+                self.room_id,
+            )
+            user_list_data = UserListData(users=[u.model_dump() for u in new_list])
+            await room_manager.broadcast(
+                WebSocketResponse(
+                    status="success",
+                    action=WSActionType.USER_LIST,
+                    data=user_list_data.model_dump(),
+                ).model_dump(),
+                self.room_id,
+            )
+        room_manager.disconnect(room_id=self.room_id, user_id=self.user_id)
 
     async def handle_error(self, e: Exception):
+        if self.room_id and self.user_id:
+            await self.handle_disconnection()
         if self.websocket.client_state.CONNECTED:
             await self.websocket.close(
                 code=status.WS_1011_INTERNAL_ERROR, reason=str(e)
