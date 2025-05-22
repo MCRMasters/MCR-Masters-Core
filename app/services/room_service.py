@@ -16,17 +16,20 @@ from app.repositories.room_user_repository import RoomUserRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.character import CharacterResponse
 from app.schemas.room import AvailableRoomResponse, RoomUserResponse, RoomUsersResponse
+from app.services.auth.user_service import UserService
 
 
 class RoomService:
     def __init__(
         self,
         session: AsyncSession,
+        user_service: UserService,
         room_repository: RoomRepository | None = None,
         room_user_repository: RoomUserRepository | None = None,
         user_repository: UserRepository | None = None,
     ):
         self.session = session
+        self.user_service = user_service
         self.room_repository = room_repository or RoomRepository(session)
         self.user_repository = user_repository or UserRepository(session)
         self.room_user_repository = room_user_repository or RoomUserRepository(session)
@@ -360,3 +363,57 @@ class RoomService:
             response.raise_for_status()
             game_data: dict[str, str] = response.json()
             return game_data.get("websocket_url", "")
+
+    async def _get_unused_bot(self, room_id: UUID) -> User | None:
+        uid_col = User.__table__.c.uid
+        bots = await self.user_repository.filter(uid_col.like("bot-%"))
+
+        existing_rus = await self.room_user_repository.filter(room_id=room_id)
+        used_ids = {ru.user_id for ru in existing_rus}
+
+        for bot in bots:
+            if bot.id not in used_ids:
+                return bot
+        return None
+
+    async def add_bot_to_slot(
+        self,
+        host_id: UUID,
+        room_id: UUID,
+        slot_index: int,
+    ) -> RoomUser:
+        room = await self.room_repository.filter_one_or_raise(id=room_id)
+        if room.host_id != host_id:
+            raise MCRDomainError(
+                code=DomainErrorCode.NOT_HOST,
+                message="Only host can add bots.",
+            )
+
+        if slot_index < 0 or slot_index >= room.max_users:
+            raise MCRDomainError(
+                code=DomainErrorCode.INVALID_ARGUMENT,
+                message=f"Invalid slot index: {slot_index}",
+            )
+        existing = await self.room_user_repository.filter(room_id=room_id)
+        if any(ru.slot_index == slot_index for ru in existing):
+            raise MCRDomainError(
+                code=DomainErrorCode.ROOM_IS_FULL,
+                message=f"slot index {slot_index} is already using.",
+            )
+
+        bot = await self._get_unused_bot(room_id)
+        if not bot:
+            bot = await self.user_service.create_bot_user()
+
+        created = await self._join_room_internal(
+            user=bot,
+            room_id=room_id,
+            slot_index=slot_index,
+        )
+
+        created.is_ready = True
+        created.is_bot = True
+        await self.room_user_repository.update(created)
+        await self.session.commit()
+
+        return created

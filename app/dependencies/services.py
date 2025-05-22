@@ -34,10 +34,12 @@ def get_room_service(
     room_repository: RoomRepository = Depends(get_room_repository),
     room_user_repository: RoomUserRepository = Depends(get_room_user_repository),
     user_repository: UserRepository = Depends(get_user_repository),
+    user_service: UserService = Depends(get_user_service),
 ) -> RoomService:
     return RoomService(
         session=session,
         room_repository=room_repository,
         room_user_repository=room_user_repository,
         user_repository=user_repository,
+        user_service=user_service,
     )
