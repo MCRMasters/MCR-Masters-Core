@@ -22,11 +22,11 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     op.add_column(
-        "room_user",
+        "roomuser",
         sa.Column("is_bot", sa.Boolean(), nullable=False, server_default=sa.false()),
     )
-    op.alter_column("room_user", "is_bot", server_default=None)
+    op.alter_column("roomuser", "is_bot", server_default=None)
 
 
 def downgrade() -> None:
-    op.drop_column("room_user", "is_bot")
+    op.drop_column("roomuser", "is_bot")
