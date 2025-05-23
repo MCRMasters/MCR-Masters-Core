@@ -411,9 +411,10 @@ class RoomService:
                 message=f"slot index {slot_index} is already using.",
             )
 
-        bot = await self._get_unused_bot(room_id)
-        if not bot:
-            bot = await self.user_service.create_bot_user()
+        # bot = await self._get_unused_bot(room_id)
+        # if not bot:
+        # bot = await self.user_service.create_bot_user()
+        bot = await self.user_service.create_bot_user()
 
         created = await self._join_room_internal(
             user=bot,
