@@ -158,6 +158,16 @@ class RoomService:
             load_options=[selectinload(RoomUser.character)],
         )
 
+        if remaining and all(ru.is_bot for ru in remaining):
+            for ru in remaining:
+                await self.room_user_repository.delete(uuid=ru.id)
+            await self.session.commit()
+
+            await self.room_repository.delete(room.id)
+            await self.session.commit()
+
+            return []
+
         if remaining and room.host_id == user_id:
             new_host_ru = min(remaining, key=lambda ru: ru.slot_index)
             room.host_id = new_host_ru.user_id
