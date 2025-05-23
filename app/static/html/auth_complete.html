@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>로그인 완료</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: radial-gradient(#0d0d0d, #1a1a1a);
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: #00ffc3;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid #00ffc3;
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 0 20px #00ffc355;
+        }
+
+        .card h1 {
+            font-size: 2em;
+            margin-bottom: 0.5em;
+        }
+
+        .card p {
+            font-size: 1.2em;
+            color: #cccccc;
+        }
+
+        .button {
+            margin-top: 30px;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            background-color: #00ffc3;
+            color: #000;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .button:hover {
+            background-color: #00bfa1;
+        }
+    </style>
+    <script>
+        window.onload = function () {
+            window.close();
+        }
+    </script>
+</head>
+
+<body>
+    <div class="card">
+        <h1>✅ 로그인 완료</h1>
+        <p>게임으로 돌아가서 로그인 결과를 확인하세요.</p>
+        <button class="button" onclick="window.close()">창 닫기</button>
+    </div>
+</body>
+
+</html>
