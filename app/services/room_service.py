@@ -355,34 +355,34 @@ class RoomService:
             )
 
         game_websocket_url = await self._call_game_server_api()
-        # game_id: str = game_websocket_url.split("/")[-1]
+        game_id: str = game_websocket_url.split("/")[-1]
 
-        # bot_users = [ru for ru in room_users if ru.is_bot]
+        bot_users = [ru for ru in room_users if ru.is_bot]
 
-        # if bot_users:
-        #     agent_base = settings.AGENT_SERVER_URL.rstrip("/")
-        #     async with httpx.AsyncClient(timeout=5.0) as client:
-        #         for ru in bot_users:
-        #             payload = {
-        #                 "game_id": game_id,
-        #                 "user_id": ru.user_uid,
-        #             }
-        #             resp = await client.post(
-        #                 f"{agent_base}/api/v1/bots/connect",
-        #                 json=payload,
-        #             )
-        #             try:
-        #                 resp.raise_for_status()
-        #             except httpx.HTTPStatusError as e:
-        #                 raise MCRDomainError(
-        #                     code=DomainErrorCode.AGENT_CONNECT_FAILED,
-        #                     message=f"Agent connection failed for user {ru.user_uid}",
-        #                     details={
-        #                         "status_code": resp.status_code,
-        #                         "response": resp.text,
-        #                         "payload": payload,
-        #                     },
-        #                 ) from e
+        if bot_users:
+            agent_base = settings.AGENT_SERVER_URL.rstrip("/")
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                for ru in bot_users:
+                    payload = {
+                        "game_id": game_id,
+                        "user_id": ru.user_uid,
+                    }
+                    resp = await client.post(
+                        f"{agent_base}/api/v1/bots/connect",
+                        json=payload,
+                    )
+                    try:
+                        resp.raise_for_status()
+                    except httpx.HTTPStatusError as e:
+                        raise MCRDomainError(
+                            code=DomainErrorCode.AGENT_CONNECT_FAILED,
+                            message=f"Agent connection failed for user {ru.user_uid}",
+                            details={
+                                "status_code": resp.status_code,
+                                "response": resp.text,
+                                "payload": payload,
+                            },
+                        ) from e
 
         room.is_playing = True
         updated_room = await self.room_repository.update(room)
