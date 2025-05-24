@@ -368,7 +368,7 @@ class RoomService:
                         "user_id": ru.user_uid,
                     }
                     resp = await client.post(
-                        f"{agent_base}/bots/connect",
+                        f"{agent_base}/api/v1/bots/connect",
                         json=payload,
                     )
                     try:
