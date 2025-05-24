@@ -355,7 +355,7 @@ class RoomService:
             )
 
         game_websocket_url = await self._call_game_server_api()
-        game_id: int = int(game_websocket_url.split("/")[-1])
+        game_id: str = game_websocket_url.split("/")[-1]
 
         bot_users = [ru for ru in room_users if ru.is_bot]
 
