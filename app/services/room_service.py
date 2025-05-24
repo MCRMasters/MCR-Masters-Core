@@ -355,6 +355,7 @@ class RoomService:
             )
 
         game_websocket_url = await self._call_game_server_api()
+        game_id: int = int(game_websocket_url.split("/")[-1])
 
         bot_users = [ru for ru in room_users if ru.is_bot]
 
@@ -363,7 +364,7 @@ class RoomService:
             async with httpx.AsyncClient(timeout=5.0) as client:
                 for ru in bot_users:
                     payload = {
-                        "game_id": str(room_id),
+                        "game_id": game_id,
                         "user_id": ru.user_id,
                     }
                     resp = await client.post(
