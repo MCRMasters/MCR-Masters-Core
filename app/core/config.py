@@ -39,6 +39,7 @@ class Settings(BaseSettings):
 
     # GAME_SERVER_URL: str = "http://localhost:8001"
     GAME_SERVER_URL: str = "http://mcrs.duckdns.org:8001/"
+    AGENT_SERVER_URL: str = "http://mcrs.duckdns.org:8002/"
 
     @property
     def sync_database_uri(self) -> str:
