@@ -365,7 +365,7 @@ class RoomService:
                 for ru in bot_users:
                     payload = {
                         "game_id": game_id,
-                        "user_id": ru.user_id,
+                        "user_id": ru.user_uid,
                     }
                     resp = await client.post(
                         f"{agent_base}/bots/connect",
