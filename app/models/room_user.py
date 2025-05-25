@@ -17,6 +17,7 @@ class RoomUser(TimeStampMixin, SQLModel, table=True):  # type: ignore[call-arg]
     user_uid: str
     user_nickname: str
     is_ready: bool = Field(default=False)
+    is_bot: bool = Field(default=False)
     slot_index: int = Field(default=0)
 
     character_code: str = Field(
