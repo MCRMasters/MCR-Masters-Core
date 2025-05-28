@@ -3,6 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, status
 from fastapi.encoders import jsonable_encoder
 from pydantic import ValidationError
+from sqlalchemy.orm import selectinload
 
 from app.core.error import MCRDomainError
 from app.core.room_connection_manager import room_manager
@@ -137,6 +138,7 @@ class RoomWebSocketHandler:
                 WSActionType.PING: self.handle_ping,
                 WSActionType.READY: self.handle_ready,
                 WSActionType.LEAVE: self.handle_leave,
+                WSActionType.ADD_BOT: self.handle_add_bot,
             }
 
             handler = message_handlers.get(message.action)
@@ -152,6 +154,106 @@ class RoomWebSocketHandler:
                         )
                     )
                 )
+
+    async def handle_add_bot(self, message: WebSocketMessage):
+        slot_index: int | None = None
+
+        raw = None
+        if message.data:
+            raw = message.data.get("slot_index")
+
+        if isinstance(raw, int):
+            slot_index = raw
+        elif isinstance(raw, str):
+            try:
+                slot_index = int(raw)
+            except ValueError:
+                slot_index = None
+
+        if slot_index is None or slot_index < 0:
+            await self.websocket.send_json(
+                jsonable_encoder(
+                    WebSocketResponse(
+                        status="error",
+                        action=WSActionType.ERROR,
+                        error=f"invalid slot index {slot_index}",
+                    )
+                )
+            )
+            return
+
+        if self.user_id is None or self.room_id is None:
+            await self.websocket.send_json(
+                jsonable_encoder(
+                    WebSocketResponse(
+                        status="error",
+                        action=WSActionType.ERROR,
+                        error="Internal server error: no user_id or room_id",
+                    )
+                )
+            )
+            return
+
+        host_id: UUID = self.user_id
+        room_id: UUID = self.room_id
+
+        try:
+            await self.room_service.add_bot_to_slot(
+                host_id=host_id,
+                room_id=room_id,
+                slot_index=slot_index,
+            )
+        except MCRDomainError as e:
+            await self.websocket.send_json(
+                jsonable_encoder(
+                    WebSocketResponse(
+                        status="error",
+                        action=WSActionType.ERROR,
+                        error=str(e),
+                    )
+                )
+            )
+            return
+
+        ru_db = await self.room_service.room_user_repository.filter_one_with_options(
+            room_id=room_id,
+            slot_index=slot_index,
+            load_options=[selectinload(RoomUser.character)],
+        )
+
+        if ru_db is None:
+            await self.websocket.send_json(
+                jsonable_encoder(
+                    WebSocketResponse(
+                        status="error",
+                        action=WSActionType.ERROR,
+                        error=f"No room user found in slot {slot_index}",
+                    )
+                )
+            )
+            return
+
+        join_data = UserJoinedData(
+            user_uid=ru_db.user_uid,
+            nickname=ru_db.user_nickname,
+            is_ready=ru_db.is_ready,
+            slot_index=ru_db.slot_index,
+            current_character=CharacterResponse(
+                code=ru_db.character_code,
+                name=ru_db.character.name,
+            ),
+        )
+
+        await room_manager.broadcast(
+            jsonable_encoder(
+                WebSocketResponse(
+                    status="success",
+                    action=WSActionType.USER_JOINED,
+                    data=join_data.model_dump(),
+                )
+            ),
+            room_id,
+        )
 
     async def handle_ping(self, _: WebSocketMessage):
         if self.room_id and self.user_id:

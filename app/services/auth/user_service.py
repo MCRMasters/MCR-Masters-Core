@@ -1,6 +1,6 @@
 from random import randint
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -148,3 +148,34 @@ class UserService:
             selectinload(User.character),
             selectinload(User.owned_characters),
         )
+
+    async def generate_unique_bot_uid(
+        self, prefix: str = "bot-", max_attempts: int = 10
+    ) -> str:
+        for _ in range(max_attempts):
+            candidate = f"{prefix}{uuid4().hex[:8]}"
+            if await self.user_repository.count(uid=candidate) == 0:
+                return candidate
+        raise MCRDomainError(
+            code=DomainErrorCode.UID_CREATE_FAILED,
+            message=f"Cannot create unique bot uid after {max_attempts} attempts",
+            details={"prefix": prefix, "max_attempts": max_attempts},
+        )
+
+    async def create_bot_user(self) -> User:
+        bot_uid = await self.generate_unique_bot_uid()
+        bot = User(
+            email=None,
+            uid=bot_uid,
+            nickname="Bot(Easy)",
+            character_code=Character.DEFAULT_CHARACTER_CODE,
+        )
+        created = await self.user_repository.create(bot)
+
+        default_uc = UserCharacter(
+            user_id=created.id,
+            character_code=Character.DEFAULT_CHARACTER_CODE,
+        )
+        self.session.add(default_uc)
+        await self.session.commit()
+        return created

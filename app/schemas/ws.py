@@ -21,6 +21,7 @@ class WSActionType(str, Enum):
     GAME_STARTED = "game_started"
     ERROR = "error"
     USER_LIST = "user_list"
+    ADD_BOT = "add_bot"
 
 
 class WebSocketMessage(BaseModel):
