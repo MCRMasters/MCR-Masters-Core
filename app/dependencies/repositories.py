@@ -33,4 +33,4 @@ async def get_room_by_game_id(
     game_id: int,
     room_repository: RoomRepository = Depends(get_room_repository),
 ) -> Room:
-    return await room_repository.filter_one_or_raise(game_id=game_id)
+    return await room_repository.filter_one_or_raise(game_id=str(game_id))
