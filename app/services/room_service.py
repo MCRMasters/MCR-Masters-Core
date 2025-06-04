@@ -319,9 +319,9 @@ class RoomService:
             room_id=room_id,
         )
         for ru in room_users:
-            await self.room_user_repository.delete(ru)
+            await self.room_user_repository.delete(ru.id)
 
-        await self.room_repository.delete(room)
+        await self.room_repository.delete(room.id)
 
         await self.session.commit()
 
