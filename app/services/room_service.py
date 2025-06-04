@@ -152,14 +152,10 @@ class RoomService:
                 message="user not found in room",
                 details={"user_id": str(user_id), "room_id": str(room_id)},
             )
-
-        should_delete_user = not room.is_playing or not disconnect_only
-        if should_delete_user:
+        if not room.is_playing and not disconnect_only:
             await self.room_user_repository.delete(uuid=room_user.id)
-
-        await self.session.commit()
-
-        remaining = await self.room_user_repository.filter_with_options(
+            await self.session.commit()
+        remaining: list[RoomUser] = await self.room_user_repository.filter_with_options(
             room_id=room_id,
             load_options=[selectinload(RoomUser.character)],
         )
@@ -172,8 +168,12 @@ class RoomService:
             await self.room_repository.delete(room.id)
             await self.session.commit()
             return []
-
-        if should_delete_user and remaining and room.host_id == user_id:
+        if (
+            not room.is_playing
+            and not disconnect_only
+            and remaining
+            and room.host_id == user_id
+        ):
             new_host_ru = min(remaining, key=lambda ru: ru.slot_index)
             room.host_id = new_host_ru.user_id
             await self.room_repository.update(room)
