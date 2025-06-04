@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     )
 
     # GAME_SERVER_URL: str = "http://localhost:8001"
-    GAME_SERVER_URL: str = "https://mcrs.duckdns.org/game/"
+    GAME_SERVER_URL: str = "https://mcrs.duckdns.org/game"
     AGENT_SERVER_URL: str = "http://mcrbot.duckdns.org:8080/"
 
     @property
