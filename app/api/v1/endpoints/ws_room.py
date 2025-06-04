@@ -2,6 +2,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, status
 from fastapi.encoders import jsonable_encoder
+from fastapi.websockets import WebSocketState
 from pydantic import ValidationError
 from sqlalchemy.orm import selectinload
 
@@ -354,7 +355,9 @@ class RoomWebSocketHandler:
             return
         try:
             new_list = await self.room_service.leave_room(
-                user_id=self.user_id, room_id=self.room_id, disconnect_only=True
+                user_id=self.user_id,
+                room_id=self.room_id,
+                disconnect_only=True,
             )
         except MCRDomainError:
             new_list = []
@@ -387,7 +390,7 @@ class RoomWebSocketHandler:
     async def handle_error(self, e: Exception):
         if self.room_id and self.user_id:
             await self.handle_disconnection()
-        if self.websocket.client_state.CONNECTED:
+        if self.websocket.client_state == WebSocketState.CONNECTED:
             await self.websocket.close(
                 code=status.WS_1011_INTERNAL_ERROR, reason=str(e)
             )
