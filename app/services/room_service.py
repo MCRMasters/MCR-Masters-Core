@@ -305,7 +305,8 @@ class RoomService:
             users=users,
         )
 
-    async def end_game(self, room_id: UUID) -> Room:
+    # TODO should change when users come back to room scene after end game
+    async def end_game(self, room_id: UUID) -> None:
         room = await self.room_repository.filter_one_or_raise(id=room_id)
 
         if not room.is_playing:
@@ -314,22 +315,15 @@ class RoomService:
                 message=f"Room with ID {room_id} is not currently playing",
                 details={"room_id": str(room_id)},
             )
-
-        room.is_playing = False
-        updated_room = await self.room_repository.update(room)
-
         room_users = await self.room_user_repository.filter_with_options(
             room_id=room_id,
-            load_options=[selectinload(RoomUser.character)],
         )
+        for ru in room_users:
+            await self.room_user_repository.delete(ru)
 
-        for room_user in room_users:
-            if room_user.user_id != room.host_id:
-                room_user.is_ready = False
-                await self.room_user_repository.update(room_user)
+        await self.room_repository.delete(room)
 
         await self.session.commit()
-        return updated_room
 
     async def start_game(self, room_id: UUID) -> Room:
         room = await self.room_repository.filter_one_or_raise(id=room_id)
