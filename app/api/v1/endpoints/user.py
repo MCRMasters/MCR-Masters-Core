@@ -87,9 +87,11 @@ async def is_user_in_playing_room(
             message="User is not in any room", data={"in_playing_room": False}
         )
 
-    room: Room = await room_service.room_repository.filter_one_or_raise(
+    room: Room | None = await room_service.room_repository.filter_one(
         id=room_user.room_id
     )
+    if not room:
+        return BaseResponse(message="Room not found", data={"in_playing_room": False})
 
     return BaseResponse(
         message="User room status checked",
