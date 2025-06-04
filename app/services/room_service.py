@@ -153,7 +153,8 @@ class RoomService:
                 details={"user_id": str(user_id), "room_id": str(room_id)},
             )
 
-        if not disconnect_only:
+        should_delete_user = not room.is_playing or not disconnect_only
+        if should_delete_user:
             await self.room_user_repository.delete(uuid=room_user.id)
 
         await self.session.commit()
@@ -170,10 +171,9 @@ class RoomService:
 
             await self.room_repository.delete(room.id)
             await self.session.commit()
-
             return []
 
-        if not disconnect_only and remaining and room.host_id == user_id:
+        if should_delete_user and remaining and room.host_id == user_id:
             new_host_ru = min(remaining, key=lambda ru: ru.slot_index)
             room.host_id = new_host_ru.user_id
             await self.room_repository.update(room)
