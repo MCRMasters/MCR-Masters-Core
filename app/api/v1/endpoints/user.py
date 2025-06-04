@@ -93,5 +93,5 @@ async def is_user_in_playing_room(
 
     return BaseResponse(
         message="User room status checked",
-        data={"in_playing_room": room.is_playing},
+        data={"in_playing_room": room.is_playing, "game_id": room.game_id},
     )

@@ -138,11 +138,14 @@ class RoomService:
         created_room_user = await self.room_user_repository.create(room_user)
         return created_room_user
 
-    async def leave_room(self, user_id: UUID, room_id: UUID) -> list[RoomUserResponse]:
+    async def leave_room(
+        self, user_id: UUID, room_id: UUID, *, disconnect_only: bool = False
+    ) -> list[RoomUserResponse]:
         room: Room = await self.room_repository.filter_one_or_raise(id=room_id)
         room_user: RoomUser = await self.room_user_repository.filter_one_or_raise(
             user_id=user_id
         )
+
         if room_user.room_id != room.id:
             raise MCRDomainError(
                 code=DomainErrorCode.USER_NOT_FOUND,
@@ -150,7 +153,9 @@ class RoomService:
                 details={"user_id": str(user_id), "room_id": str(room_id)},
             )
 
-        await self.room_user_repository.delete(uuid=room_user.id)
+        if not disconnect_only:
+            await self.room_user_repository.delete(uuid=room_user.id)
+
         await self.session.commit()
 
         remaining = await self.room_user_repository.filter_with_options(
@@ -168,7 +173,7 @@ class RoomService:
 
             return []
 
-        if remaining and room.host_id == user_id:
+        if not disconnect_only and remaining and room.host_id == user_id:
             new_host_ru = min(remaining, key=lambda ru: ru.slot_index)
             room.host_id = new_host_ru.user_id
             await self.room_repository.update(room)
@@ -185,8 +190,9 @@ class RoomService:
                 user_uid=ru.user_uid,
                 is_ready=ru.is_ready,
                 slot_index=ru.slot_index,
-                current_character=(
-                    CharacterResponse(code=ru.character.code, name=ru.character.name)
+                current_character=CharacterResponse(
+                    code=ru.character.code,
+                    name=ru.character.name,
                 ),
             )
             for ru in remaining

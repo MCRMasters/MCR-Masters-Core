@@ -343,7 +343,9 @@ class RoomWebSocketHandler:
         if not (self.room_id and self.user_id):
             return
         try:
-            new_list = await self.room_service.leave_room(self.user_id, self.room_id)
+            new_list = await self.room_service.leave_room(
+                user_id=self.user_id, room_id=self.room_id, disconnect_only=True
+            )
         except MCRDomainError:
             new_list = []
         if new_list:
