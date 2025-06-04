@@ -385,6 +385,7 @@ class RoomService:
                         ) from e
 
         room.is_playing = True
+        room.game_id = game_id
         updated_room = await self.room_repository.update(room)
         await self.session.commit()
 
