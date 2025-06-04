@@ -27,3 +27,10 @@ async def get_room_by_number(
     room_repository: RoomRepository = Depends(get_room_repository),
 ) -> Room:
     return await room_repository.filter_one_or_raise(room_number=room_number)
+
+
+async def get_room_by_game_id(
+    game_id: int,
+    room_repository: RoomRepository = Depends(get_room_repository),
+) -> Room:
+    return await room_repository.filter_one_or_raise(game_id=game_id)
