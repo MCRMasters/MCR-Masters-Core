@@ -90,8 +90,11 @@ async def is_user_in_playing_room(
     room: Room | None = await room_service.room_repository.filter_one(
         id=room_user.room_id
     )
+    print(f"[DEBUG] room={room}")
+
     if not room:
         return BaseResponse(message="Room not found", data={"in_playing_room": False})
+    print(f"[DEBUG] is_playing={room.is_playing}, game_id={room.game_id}")
 
     return BaseResponse(
         message="User room status checked",
