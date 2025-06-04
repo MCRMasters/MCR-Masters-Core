@@ -2,6 +2,7 @@ from uuid import UUID
 
 from fastapi import WebSocket, status
 from fastapi.encoders import jsonable_encoder
+from fastapi.websockets import WebSocketState
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.error import DomainErrorCode, MCRDomainError
@@ -75,7 +76,11 @@ class RoomConnectionManager:
             json_message = jsonable_encoder(message)
             for user_id, connection in self.active_connections[room_id].items():
                 if exclude_user_id is None or user_id != exclude_user_id:
-                    await connection.send_json(json_message)
+                    try:
+                        if connection.client_state == WebSocketState.CONNECTED:
+                            await connection.send_json(json_message)
+                    except Exception:
+                        pass
 
     async def broadcast_game_started(self, room_id: UUID, ws_url: str) -> None:
         if room_id not in self.active_connections:
