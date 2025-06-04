@@ -19,3 +19,4 @@ class Room(TimeStampMixin, SQLModel, table=True):  # type: ignore[call-arg]
     max_users: int = Field(default=4)
     is_playing: bool = Field(default=False)
     host_id: UUID = Field(foreign_key="user.id")
+    game_id: str | None = Field(default=None, index=True, nullable=True)
