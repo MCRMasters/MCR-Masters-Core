@@ -8,7 +8,7 @@ packages = [{include = "app"}]
 
 [tool.poetry.dependencies]
 python = "^3.12"
-uvicorn = "^0.34.0"
+uvicorn = {extras = ["standard"], version = "^0.34.3"}
 sqlmodel = "^0.0.22"
 pydantic-settings = "^2.7.1"
 alembic = "^1.13.1"
