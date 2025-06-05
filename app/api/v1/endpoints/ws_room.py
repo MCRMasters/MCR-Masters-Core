@@ -2,6 +2,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, status
 from fastapi.encoders import jsonable_encoder
+from fastapi.websockets import WebSocketState
 from pydantic import ValidationError
 from sqlalchemy.orm import selectinload
 
@@ -312,7 +313,12 @@ class RoomWebSocketHandler:
         new_list = await self.room_service.leave_room(self.user_id, self.room_id)
 
         if not new_list:
-            room_manager.disconnect(room_id=self.room_id, user_id=self.user_id)
+            await room_manager.disconnect(
+                room_id=self.room_id,
+                user_id=self.user_id,
+                session=self.room_service.session,
+                room_repository=self.room_service.room_repository,
+            )
             await self.websocket.close(code=status.WS_1000_NORMAL_CLOSURE)
             return
 
@@ -336,14 +342,23 @@ class RoomWebSocketHandler:
             self.room_id,
         )
 
-        room_manager.disconnect(room_id=self.room_id, user_id=self.user_id)
+        await room_manager.disconnect(
+            room_id=self.room_id,
+            user_id=self.user_id,
+            session=self.room_service.session,
+            room_repository=self.room_service.room_repository,
+        )
         await self.websocket.close(code=status.WS_1000_NORMAL_CLOSURE)
 
     async def handle_disconnection(self):
         if not (self.room_id and self.user_id):
             return
         try:
-            new_list = await self.room_service.leave_room(self.user_id, self.room_id)
+            new_list = await self.room_service.leave_room(
+                user_id=self.user_id,
+                room_id=self.room_id,
+                disconnect_only=True,
+            )
         except MCRDomainError:
             new_list = []
         if new_list:
@@ -365,12 +380,17 @@ class RoomWebSocketHandler:
                 ).model_dump(),
                 self.room_id,
             )
-        room_manager.disconnect(room_id=self.room_id, user_id=self.user_id)
+        await room_manager.disconnect(
+            room_id=self.room_id,
+            user_id=self.user_id,
+            session=self.room_service.session,
+            room_repository=self.room_service.room_repository,
+        )
 
     async def handle_error(self, e: Exception):
         if self.room_id and self.user_id:
             await self.handle_disconnection()
-        if self.websocket.client_state.CONNECTED:
+        if self.websocket.client_state == WebSocketState.CONNECTED:
             await self.websocket.close(
                 code=status.WS_1011_INTERNAL_ERROR, reason=str(e)
             )

@@ -1,7 +1,9 @@
 from uuid import UUID
 
 from fastapi import WebSocket, status
-from fastapi.encoders import jsonable_encoder  # 추가
+from fastapi.encoders import jsonable_encoder
+from fastapi.websockets import WebSocketState
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.error import DomainErrorCode, MCRDomainError
 from app.core.security import get_user_id_from_token
@@ -26,18 +28,36 @@ class RoomConnectionManager:
         self.active_connections[room_id][user_id] = websocket
         self.user_rooms[user_id] = room_id
 
-    def disconnect(self, room_id: UUID, user_id: UUID) -> None:
-        if (
-            room_id in self.active_connections
-            and user_id in self.active_connections[room_id]
-        ):
-            del self.active_connections[room_id][user_id]
+    async def disconnect(
+        self,
+        room_id: UUID,
+        user_id: UUID,
+        *,
+        session: AsyncSession | None = None,
+        room_repository: RoomRepository | None = None,
+    ) -> None:
+        should_remove = True
 
-            if not self.active_connections[room_id]:
-                del self.active_connections[room_id]
+        if room_repository and session:
+            try:
+                room = await room_repository.filter_one_or_raise(id=room_id)
+                if room.is_playing:
+                    should_remove = False
+            except MCRDomainError:
+                pass
 
-        if user_id in self.user_rooms:
-            del self.user_rooms[user_id]
+        if should_remove:
+            if (
+                room_id in self.active_connections
+                and user_id in self.active_connections[room_id]
+            ):
+                del self.active_connections[room_id][user_id]
+
+                if not self.active_connections[room_id]:
+                    del self.active_connections[room_id]
+
+            if user_id in self.user_rooms:
+                del self.user_rooms[user_id]
 
     async def send_personal_message(
         self, message: dict, room_id: UUID, user_id: UUID
@@ -56,7 +76,11 @@ class RoomConnectionManager:
             json_message = jsonable_encoder(message)
             for user_id, connection in self.active_connections[room_id].items():
                 if exclude_user_id is None or user_id != exclude_user_id:
-                    await connection.send_json(json_message)
+                    try:
+                        if connection.client_state == WebSocketState.CONNECTED:
+                            await connection.send_json(json_message)
+                    except Exception:
+                        pass
 
     async def broadcast_game_started(self, room_id: UUID, ws_url: str) -> None:
         if room_id not in self.active_connections:
