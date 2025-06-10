@@ -30,3 +30,11 @@ class AvailableRoomResponse(BaseModel):
 class RoomUsersResponse(BaseModel):
     host_uid: str
     users: list[RoomUserResponse]
+
+
+class RoomDetailResponse(BaseModel):
+    room_number: int
+    name: str
+    is_playing: bool
+    game_id: str
+    users: list[RoomUserResponse]

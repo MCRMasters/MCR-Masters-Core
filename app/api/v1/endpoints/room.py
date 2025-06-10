@@ -10,6 +10,7 @@ from app.models.user import User
 from app.schemas.common import BaseResponse
 from app.schemas.room import (
     AvailableRoomResponse,
+    RoomDetailResponse,
     RoomResponse,
     RoomUsersResponse,
 )
@@ -124,3 +125,44 @@ async def leave_room(
 ):
     await room_service.leave_room(current_user.id, room.id)
     return BaseResponse(message="Left room successfully")
+
+
+@router.get(
+    "/me",
+    response_model=RoomDetailResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_my_room(
+    current_user: User = Depends(get_current_user),
+    room_service: RoomService = Depends(get_room_service),
+) -> RoomDetailResponse:
+    room_user: RoomUser | None = await room_service.room_user_repository.filter_one(
+        user_id=current_user.id
+    )
+    if not room_user:
+        raise MCRDomainError(
+            code=DomainErrorCode.USER_NOT_IN_ROOM,
+            message="User is not in any room",
+            details={"user_id": str(current_user.id)},
+        )
+
+    room: Room | None = await room_service.room_repository.filter_one(
+        id=room_user.room_id
+    )
+    if not room:
+        raise MCRDomainError(
+            code=DomainErrorCode.ROOM_NOT_FOUND,
+            message="Room not found",
+            details={"room_id": str(room_user.room_id)},
+        )
+
+    room_users_response = await room_service.get_room_users(room.id)
+    users = room_users_response.users
+
+    return RoomDetailResponse(
+        room_number=room.room_number,
+        name=room.name,
+        is_playing=room.is_playing,
+        game_id=room.game_id or "",
+        users=users,
+    )
