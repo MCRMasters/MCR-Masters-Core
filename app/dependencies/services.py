@@ -11,6 +11,7 @@ from app.repositories.room_repository import RoomRepository
 from app.repositories.room_user_repository import RoomUserRepository
 from app.repositories.user_repository import UserRepository
 from app.services.auth.google import GoogleOAuthService
+from app.services.auth.jwt_service import AuthService
 from app.services.auth.user_service import UserService
 from app.services.room_service import RoomService
 
@@ -41,3 +42,7 @@ def get_room_service(
         room_user_repository=room_user_repository,
         user_repository=user_repository,
     )
+
+
+def get_auth_service() -> AuthService:
+    return AuthService()
