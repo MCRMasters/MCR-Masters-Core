@@ -5,8 +5,8 @@ from fastapi.encoders import jsonable_encoder
 from pydantic import ValidationError
 
 from app.core.error import MCRDomainError
+from app.core.jwt import get_user_id_from_token
 from app.core.room_connection_manager import room_manager
-from app.core.security import get_user_id_from_token
 from app.dependencies.services import get_room_service
 from app.models.room_user import RoomUser
 from app.models.user import User

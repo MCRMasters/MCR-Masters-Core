@@ -4,7 +4,7 @@ from fastapi import WebSocket, status
 from fastapi.encoders import jsonable_encoder  # 추가
 
 from app.core.error import DomainErrorCode, MCRDomainError
-from app.core.security import get_user_id_from_token
+from app.core.jwt import get_user_id_from_token
 from app.models.user import User
 from app.repositories.room_repository import RoomRepository
 from app.repositories.room_user_repository import RoomUserRepository
