@@ -1,8 +1,10 @@
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Depends, status
 from httpx import AsyncClient
 
 from app.core.config import settings
+from app.dependencies.services import get_room_service
 from app.schemas.watch import WatchGame, WatchGameUser
+from app.services.room_service import RoomService
 
 router = APIRouter()
 
@@ -12,7 +14,10 @@ router = APIRouter()
     response_model=list[WatchGame],
     status_code=status.HTTP_200_OK,
 )
-async def get_available_watch_games():
+async def get_available_watch_games(
+    room_service: RoomService = Depends(get_room_service),
+) -> list[WatchGame]:
+    await room_service.cleanup_rooms()
     async with AsyncClient() as client:
         response = await client.get(
             f"{settings.GAME_SERVER_URL}/api/v1/games/watch",

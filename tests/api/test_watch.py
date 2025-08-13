@@ -1,4 +1,6 @@
 # tests/api/test_watch.py
+from unittest.mock import AsyncMock
+
 import pytest
 
 from app.api.v1.endpoints.watch import get_available_watch_games
@@ -53,7 +55,8 @@ async def test_get_available_watch_games_success(monkeypatch):
         "app.api.v1.endpoints.watch.AsyncClient",
         lambda *args, **kwargs: DummyClient(raw_games, status_code=200),
     )
-    result = await get_available_watch_games()
+    mock_room_service = AsyncMock()
+    result = await get_available_watch_games(room_service=mock_room_service)
     assert isinstance(result, list)
     assert result == [
         WatchGame(
@@ -70,6 +73,7 @@ async def test_get_available_watch_games_success(monkeypatch):
             users=[],
         ),
     ]
+    mock_room_service.cleanup_rooms.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -78,6 +82,8 @@ async def test_get_available_watch_games_http_error(monkeypatch):
         "app.api.v1.endpoints.watch.AsyncClient",
         lambda *args, **kwargs: DummyClient([], status_code=500),
     )
+    mock_room_service = AsyncMock()
     with pytest.raises(RuntimeError) as excinfo:
-        await get_available_watch_games()
+        await get_available_watch_games(room_service=mock_room_service)
     assert "HTTP error: 500" in str(excinfo.value)
+    mock_room_service.cleanup_rooms.assert_awaited_once()
