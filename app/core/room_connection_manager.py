@@ -6,7 +6,7 @@ from fastapi.websockets import WebSocketState
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.error import DomainErrorCode, MCRDomainError
-from app.core.security import get_user_id_from_token
+from app.core.jwt import get_user_id_from_token
 from app.models.user import User
 from app.repositories.room_repository import RoomRepository
 from app.repositories.room_user_repository import RoomUserRepository

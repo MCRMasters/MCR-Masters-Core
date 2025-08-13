@@ -6,7 +6,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.security import create_access_token, create_refresh_token
+from app.core.jwt import create_access_token, create_refresh_token
 from app.schemas.auth.base import TokenResponse
 from app.schemas.auth.google import (
     GoogleAuthParams,

@@ -1,7 +1,7 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from app.core.security import get_user_id_from_token
+from app.core.jwt import get_user_id_from_token
 from app.dependencies.services import get_user_service
 from app.models.user import User
 from app.services.auth.user_service import UserService

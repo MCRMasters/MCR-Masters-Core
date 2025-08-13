@@ -4,7 +4,7 @@ import pytest
 from jose import jwt
 
 from app.core.config import settings
-from app.core.security import decode_token, get_user_id_from_token
+from app.core.jwt import decode_token, get_user_id_from_token
 from app.schemas.auth.jwt import JwtTokenPayload
 
 
@@ -88,7 +88,7 @@ def test_get_user_id_from_token_with_invalid_token(invalid_token):
 
 def test_get_user_id_from_token_with_invalid_uuid(mocker):
     mocker.patch(
-        "app.core.security.decode_token",
+        "app.core.jwt.decode_token",
         return_value=None,
     )
 
