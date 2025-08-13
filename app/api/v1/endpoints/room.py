@@ -73,6 +73,7 @@ async def get_available_rooms(
     current_user: User = Depends(get_current_user),  # noqa : ARG001
     room_service: RoomService = Depends(get_room_service),
 ):
+    await room_service.cleanup_rooms()
     return await room_service.get_available_rooms()
 
 

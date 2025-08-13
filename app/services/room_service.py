@@ -198,6 +198,27 @@ class RoomService:
             for ru in remaining
         ]
 
+    async def cleanup_rooms(self) -> None:
+        room_users = await self.room_user_repository.filter()
+        rooms = await self.room_repository.filter()
+        room_ids = {room.id for room in rooms}
+
+        for ru in room_users:
+            if ru.room_id not in room_ids:
+                await self.room_user_repository.delete(uuid=ru.id)
+
+        for room in rooms:
+            active_user_ids = room_manager.get_room_users(room.id)
+            current_room_users = await self.room_user_repository.filter(room_id=room.id)
+            for ru in current_room_users:
+                if ru.user_id not in active_user_ids and not room.is_playing:
+                    await self.room_user_repository.delete(uuid=ru.id)
+            remaining = await self.room_user_repository.filter(room_id=room.id)
+            if not remaining:
+                await self.room_repository.delete(room.id)
+
+        await self.session.commit()
+
     async def get_available_rooms(self) -> list[AvailableRoomResponse]:
         rooms_with_users = await self.room_repository.get_available_rooms_with_users()
         result = []

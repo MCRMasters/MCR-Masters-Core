@@ -228,6 +228,7 @@ async def test_get_available_rooms_success(login_client, mock_user):
     assert data[1]["current_users"] == 1
     assert data[1]["host_nickname"] == "AnotherHost"
     assert len(data[1]["users"]) == 1
+    mocks["services"]["room_service"].cleanup_rooms.assert_called_once()
     mocks["services"]["room_service"].get_available_rooms.assert_called_once()
 
 

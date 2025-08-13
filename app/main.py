@@ -1,3 +1,6 @@
+import asyncio
+from contextlib import suppress
+
 from fastapi import FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,6 +11,15 @@ from app.api.v1.endpoints import api_router
 from app.core.config import settings
 from app.core.error import DomainErrorCode, MCRDomainError
 from app.schemas.common import BaseResponse
+
+
+async def cleanup_task() -> None:
+    try:
+        while True:
+            await asyncio.sleep(60)
+    except asyncio.CancelledError:
+        pass
+
 
 app = FastAPI(
     title="MCRMasters-BE",
@@ -27,6 +39,19 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 
 
 app.include_router(internal_router, prefix="/internal")
+
+
+@app.on_event("startup")
+async def on_startup() -> None:
+    cleanup = asyncio.create_task(cleanup_task())
+    app.state.cleanup_task = cleanup
+
+
+@app.on_event("shutdown")
+async def on_shutdown() -> None:
+    app.state.cleanup_task.cancel()
+    with suppress(asyncio.CancelledError):
+        await app.state.cleanup_task
 
 
 @app.get("/health", status_code=status.HTTP_200_OK)
